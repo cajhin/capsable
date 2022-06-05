@@ -1,4 +1,0 @@
-- JOB: ./intercept -g $DEVNODE | ./capsable | ./uinput -d $DEVNODE
-  DEVICE:
-    EVENTS:
-      EV_KEY: [KEY_X, KEY_Y]

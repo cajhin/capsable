@@ -4,9 +4,10 @@
 #include <unistd.h>
 
 #define DEBUG if(1)  
-#define VERSION 1
+#define VERSION 2
 
-int main(void) {
+int main(void) 
+{
 
     DEBUG fprintf(stderr, "CAPSABLE %i STARTED\n", VERSION);
 
@@ -19,6 +20,7 @@ int main(void) {
 
     int capsIsDown = 0;
     int escIsDown = 0;
+    int altIsDown = 0;
     unsigned int modmask = 0;
 
     while (fread(&event, sizeof(event), 1, stdin) == 1) 
@@ -31,30 +33,39 @@ int main(void) {
             continue;
         }
 
-        if (event.code == KEY_F2) {
+        if (event.code == KEY_F2) {  //todo ESC on baremetal F2 in VM
             escIsDown = event.value == 0 ? 0 : 1;
             DEBUG fprintf(stderr, "F2 escIsDown:%u\n", escIsDown);
             fwrite(&event, sizeof(event), 1, stdout);
-            continue;
-        }
-        else if (event.code == KEY_CAPSLOCK) {
-            capsIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
         else if (escIsDown && event.code == KEY_X)  {
             fprintf(stderr, "capsable exit\n");
             break;
         }
+        else if (event.code == KEY_CAPSLOCK) {
+            capsIsDown = event.value == 0 ? 0 : 1;
+            continue;
+        }
+        else if (event.code == KEY_RIGHTALT
+                || event.code == KEY_LEFTALT) {
+            altIsDown = event.value == 0 ? 0 : 1;
+            continue;
+        }
 
-        //rewire
+        //REWIRE
+        else if (event.code == KEY_RIGHTCTRL)
+            event.code = KEY_RIGHTALT;
         else if (event.code == KEY_SLASH)
             event.code = KEY_RIGHTSHIFT;
+        else if (event.code == KEY_102ND) //ISO boards left <>
+            event.code = KEY_LEFTSHIFT;
         else if (event.code == KEY_Y)
             event.code = KEY_Z;
         else if (event.code == KEY_Z)
             event.code = KEY_Y;
 
-        //CAPS cursor
+        //CAPS cursor, ASDF
         if(capsIsDown)
         {
             if (event.code == KEY_J)
@@ -89,6 +100,41 @@ int main(void) {
                 modmask = 0b0010;
                 event.code = KEY_RIGHT;
             }
+            else if (event.code == KEY_A) {
+                if(!event.value)
+                    continue;
+                modmask = 0b0010;
+                event.code = KEY_Z;
+            }
+            else if (event.code == KEY_S) {
+                if(!event.value)
+                    continue;
+                modmask = 0b0010;
+                event.code = KEY_X;
+            }
+            else if (event.code == KEY_D) {
+                if(!event.value)
+                    continue;
+                modmask = 0b0010;
+                event.code = KEY_V;
+            }
+            else if (event.code == KEY_F) {
+                if(!event.value)
+                    continue;
+                modmask = 0b0010;
+                event.code = KEY_V;
+            }
+        }
+
+        //alt chars
+        if(altIsDown)
+        {
+            if (event.code == KEY_F)
+                event.code = KEY_SLASH;
+            else if (event.code == KEY_Q) {
+                modmask = 0b0001;
+                event.code = KEY_1;
+            }
         }
 
         //try out with numbers
@@ -96,25 +142,23 @@ int main(void) {
             if(capsIsDown)
                 event.code = KEY_A;
         }
-        else if (event.code == KEY_2)
-        {
-            DEBUG fprintf(stderr, "info: 2 was pressed\n");
-            event.code = KEY_B;
-        }
-        else if (event.code == KEY_4)
-            continue;
-        else if (event.code == KEY_9)
-            event.code = KEY_ENTER;
-        else if (event.type == EV_KEY)
+        else
             DEBUG fprintf(stderr, "other code: %u - %i\n", event.code, event.value);
 
 
 
-        if (modmask == 0b0010)
+        if (modmask)
         {
-            DEBUG fprintf(stderr, "modmask ctrl");
-            modEvent.code = KEY_LEFTCTRL;
             modEvent.type = EV_KEY;
+
+            if (modmask & 0b0001) {
+                DEBUG fprintf(stderr, "modmask lshf");
+                modEvent.code = KEY_LEFTSHIFT;
+            }
+            if (modmask & 0b0010) {
+                DEBUG fprintf(stderr, "modmask lctrl");
+                modEvent.code = KEY_LEFTCTRL;
+            }
             
 
             modEvent.value = 1;
