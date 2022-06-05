@@ -116,7 +116,7 @@ int main(void)
                 if(!event.value)
                     continue;
                 modmask = 0b0010;
-                event.code = KEY_V;
+                event.code = KEY_C;
             }
             else if (event.code == KEY_F) {
                 if(!event.value)
@@ -132,6 +132,8 @@ int main(void)
             if (event.code == KEY_F)
                 event.code = KEY_SLASH;
             else if (event.code == KEY_Q) {
+                if(!event.value)
+                    continue;
                 modmask = 0b0001;
                 event.code = KEY_1;
             }
