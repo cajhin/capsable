@@ -4,38 +4,50 @@
 #include <unistd.h>
 
 #define DEBUG if(1)  
-#define VERSION 5
+#define VERSION 6
 
 //fuzzy. VSCode needs no sleep, gnome apps a lot
-#define SYN_SLEEP_US 10000
+#define SLEEP_SHORT_US 2000
+#define SLEEP_MEDIUM_US 2000
 
-const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT,   .value = 0};
+const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
 struct input_event event, modEvent;
 int key_handled = 0;
 
-void writeSynReport()
+// void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key2)
+// {
+//     writeKey
+//     writeModdedKey(modmask1, key1);
+//     writeModdedKey(modmask2, key2);
+// }
+
+void sleepShort()
+{
+    usleep(SLEEP_SHORT_US);
+}
+void sleepMedium()
+{
+    usleep(SLEEP_MEDIUM_US);
+}
+
+void writeSyn()
 {
     //syn_report.time
     fwrite(&syn_report, sizeof(syn_report), 1, stdout);
-    usleep(SYN_SLEEP_US);
 }
 
 void writeKey(unsigned short code)
 { 
-    DEBUG fprintf(stderr, "KEY out: %u - %i\n", event.code, event.value);
+    DEBUG fprintf(stderr, "KEY out: %u - %i\n", code, event.value);
     key_handled = 1;
     event.code = code;
     fwrite(&event, sizeof(event), 1, stdout);
+    writeSyn();
+//    sleepMedium();
 }
 
 void writeModdedKey(int modmask, unsigned short code)
 {
-    if(!modmask)
-    {
-        writeKey(code);
-        return;
-    }
-
     key_handled = 1;
     if(!event.value) //entire sequence is written on key down
         return;
@@ -47,33 +59,45 @@ void writeModdedKey(int modmask, unsigned short code)
         DEBUG fprintf(stderr, "modmask lshf");
         modEvent.code = KEY_LEFTSHIFT;
     }
-    if (modmask & 0b0010) {
+    else if (modmask & 0b0010) {
         DEBUG fprintf(stderr, "modmask lctrl");
         modEvent.code = KEY_LEFTCTRL;
     }
+    else
+        modEvent.code = 0;
 
-    modEvent.value = 1;
-    modEvent.time.tv_sec = event.time.tv_sec;
-    modEvent.time.tv_usec = event.time.tv_usec - 1;
-    if (event.time.tv_usec == 0)
-        modEvent.time.tv_sec--;
-    fwrite(&modEvent, sizeof(modEvent), 1, stdout);
-    writeSynReport();
+    if(modEvent.code) {
+        modEvent.value = 1;
+        modEvent.time.tv_sec = event.time.tv_sec;
+        modEvent.time.tv_usec = event.time.tv_usec - 1;
+        if (event.time.tv_usec == 0)
+            modEvent.time.tv_sec--;
+        fwrite(&modEvent, sizeof(modEvent), 1, stdout);
+        writeSyn();
+        sleepShort();
+    }
 
     event.value = 1;
     writeKey(event.code);
+    writeSyn();
+    sleepShort();
 
     event.value = 0;
     event.time.tv_usec++;
     writeKey(event.code);
+    writeSyn();
+    sleepShort();
 
-    modEvent.value = 0;
-    modEvent.time.tv_sec = event.time.tv_sec;
-    modEvent.time.tv_usec = event.time.tv_usec + 1;
-    if (modEvent.time.tv_usec == 0)
-        modEvent.time.tv_sec+=1;
-    fwrite(&modEvent, sizeof(modEvent), 1, stdout);
-    writeSynReport();
+    if(modEvent.code) {
+        modEvent.value = 0;
+        modEvent.time.tv_sec = event.time.tv_sec;
+        modEvent.time.tv_usec = event.time.tv_usec + 1;
+        if (modEvent.time.tv_usec == 0)
+            modEvent.time.tv_sec+=1;
+        fwrite(&modEvent, sizeof(modEvent), 1, stdout);
+        writeSyn();
+        sleepShort();
+    }
 }
 
 
@@ -132,7 +156,7 @@ int main(void)
 
         //REWIRE
         else if (event.code == KEY_RIGHTCTRL)
-            event.code = KEY_RIGHTALT;
+            event.code = KEY_LEFTALT;
         else if (event.code == KEY_SLASH)
             event.code = KEY_RIGHTSHIFT;
         else if (event.code == KEY_BACKSLASH)
@@ -242,6 +266,9 @@ int main(void)
                 writeModdedKey(0, KEY_LEFTBRACE);
             else if (event.code == KEY_DOT) 
                 writeModdedKey(0, KEY_RIGHTBRACE);
+    //test
+            else if (event.code == KEY_SEMICOLON) 
+                writeModdedKey(0, KEY_TOUCHPAD_OFF);
         }
 
         //write
