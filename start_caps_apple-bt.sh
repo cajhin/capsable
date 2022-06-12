@@ -4,10 +4,11 @@ then
   DISTRO=ubu
 fi
 
-#default event path on VirtualBox and Dell 9350
-INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd
-#INTERDEV=/dev/input/event4
+#INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd
 
+#bluetooth devices are not listed in /by-path
+#figure out the name with 'evtest' tool
+INTERDEV=/dev/input/event4
 
 BUILDDIR=/home/jjj/git/capsable/build
 sleep 1
