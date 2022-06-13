@@ -4,23 +4,18 @@
 #include <unistd.h>
 #include <string.h>
 
-#define DEBUG if(1)  
-#define VERSION 7
+#define DEBUG if(0)  
+#define VERSION 8
 
 //fuzzy. VSCode needs no sleep, gnome apps a lot
-#define SLEEP_SHORT_US 2000
+#define SLEEP_SHORT_US 1000
 #define SLEEP_MEDIUM_US 2000
+
+const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 
 const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
 struct input_event event, modEvent;
 int key_handled = 0;
-
-// void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key2)
-// {
-//     writeKey
-//     writeModdedKey(modmask1, key1);
-//     writeModdedKey(modmask2, key2);
-// }
 
 void sleepShort()
 {
@@ -37,20 +32,26 @@ void writeSyn()
     fwrite(&syn_report, sizeof(syn_report), 1, stdout);
 }
 
-void writeKey(unsigned short code)
+void writeKeyOverride(unsigned short code, signed int value)
 { 
-    DEBUG fprintf(stderr, "KEY out: %u - %i\n", code, event.value);
+    DEBUG fprintf(stderr, "KEY out: %u - %i\n", code, value);
     key_handled = 1;
     event.code = code;
+    event.value = value;
     fwrite(&event, sizeof(event), 1, stdout);
     writeSyn();
 //    sleepMedium();
 }
 
-void writeModdedKey(int modmask, unsigned short code)
+void writeKey(unsigned short code)
+{ 
+    writeKeyOverride(code, event.value);
+}
+
+void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
 {
     key_handled = 1;
-    if(!event.value) //entire sequence is written on key down
+    if(!value) //entire sequence is written on key down
         return;
 
     event.code = code;
@@ -59,6 +60,10 @@ void writeModdedKey(int modmask, unsigned short code)
     if (modmask & 0b0001) {
         DEBUG fprintf(stderr, "modmask lshf");
         modEvent.code = KEY_LEFTSHIFT;
+    }
+    else if (modmask & 0b010000) {
+        DEBUG fprintf(stderr, "modmask rshf");
+        modEvent.code = KEY_RIGHTSHIFT;
     }
     else if (modmask & 0b0010) {
         DEBUG fprintf(stderr, "modmask lctrl");
@@ -101,7 +106,22 @@ void writeModdedKey(int modmask, unsigned short code)
     }
 }
 
+void writeModdedKey(int modmask, unsigned short code)
+{
+    writeModdedKeyOverride(modmask, code, event.value);
+}
 
+void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key2)
+{
+    if(!event.value)  //compose everything on key down
+        return;
+
+    writeKeyOverride(COMPOSE_KEY, 1);
+    writeKeyOverride(COMPOSE_KEY, 0);
+    writeModdedKeyOverride(modmask1, key1, 1);
+    writeModdedKeyOverride(modmask2, key2, 1);
+}
+// óäääÄÄÄ"Ä
 
 int main(int argc, char **argv) 
 {
@@ -114,9 +134,9 @@ int main(int argc, char **argv)
     int capsIsDown = 0;
     int altIsDown = 0;
 
-    int isAppleKeyboard = 0;
+    int keyboardIsApple = 0;
     if (argc > 1 && strcmp("--apple", argv[1]) == 0) {
-        isAppleKeyboard = 1;
+        keyboardIsApple = 1;
         DEBUG fprintf(stderr, "--apple mode\n", VERSION);
     }
 
@@ -139,7 +159,7 @@ int main(int argc, char **argv)
             continue;
         }
 
-        if (isAppleKeyboard) {
+        if (keyboardIsApple) {
             if (event.code == KEY_LEFTALT)
                 event.code = KEY_LEFTMETA;
             else if (event.code == KEY_LEFTMETA)
@@ -153,6 +173,7 @@ int main(int argc, char **argv)
             else if (event.code == KEY_LEFTCTRL)
                 event.code = KEY_FN;
         }
+
         //ESC, VIRTUAL MODIFIERS
         if (event.code == KEY_ESC ||
             event.code == KEY_F1) {
@@ -287,9 +308,13 @@ int main(int argc, char **argv)
                 writeModdedKey(0, KEY_LEFTBRACE);
             else if (event.code == KEY_DOT) 
                 writeModdedKey(0, KEY_RIGHTBRACE);
-    //test
+            // öäü ÖÄÜ
             else if (event.code == KEY_SEMICOLON) 
-                writeModdedKey(0, KEY_TOUCHPAD_OFF);
+                compose(0b010000, KEY_APOSTROPHE, 0, KEY_O);
+            else if (event.code == KEY_APOSTROPHE) 
+                compose(0b010000, KEY_APOSTROPHE, 0, KEY_A);
+            else if (event.code == KEY_LEFTBRACE) 
+                compose(0b010000, KEY_APOSTROPHE, 0, KEY_U);
         }
 
         //write
@@ -298,3 +323,4 @@ int main(int argc, char **argv)
     }
 }
 
+// öäüüöäJörn
