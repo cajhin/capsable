@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <linux/input.h>
 #include <unistd.h>
+#include <string.h>
 
 #define DEBUG if(1)  
-#define VERSION 6
+#define VERSION 7
 
 //fuzzy. VSCode needs no sleep, gnome apps a lot
 #define SLEEP_SHORT_US 2000
@@ -102,7 +103,7 @@ void writeModdedKey(int modmask, unsigned short code)
 
 
 
-int main(void) 
+int main(int argc, char **argv) 
 {
 
     DEBUG fprintf(stderr, "CAPSABLE %i STARTED\n", VERSION);
@@ -112,6 +113,12 @@ int main(void)
     int escIsDown = 0;
     int capsIsDown = 0;
     int altIsDown = 0;
+
+    int isAppleKeyboard = 0;
+    if (argc > 1 && strcmp("--apple", argv[1]) == 0) {
+        isAppleKeyboard = 1;
+        DEBUG fprintf(stderr, "--apple mode\n", VERSION);
+    }
 
     while (fread(&event, sizeof(event), 1, stdin) == 1) 
     {
@@ -132,7 +139,21 @@ int main(void)
             continue;
         }
 
-        //ESC, MODIFIER
+        if (isAppleKeyboard) {
+            if (event.code == KEY_LEFTALT)
+                event.code = KEY_LEFTMETA;
+            else if (event.code == KEY_LEFTMETA)
+                event.code = KEY_LEFTALT;
+            else if (event.code == KEY_RIGHTALT)
+                event.code = KEY_RIGHTMETA;
+            else if (event.code == KEY_RIGHTMETA)
+                event.code = KEY_RIGHTALT;
+            else if (event.code == KEY_FN)
+                event.code = KEY_LEFTCTRL;
+            else if (event.code == KEY_LEFTCTRL)
+                event.code = KEY_FN;
+        }
+        //ESC, VIRTUAL MODIFIERS
         if (event.code == KEY_ESC ||
             event.code == KEY_F1) {
             escIsDown = event.value == 0 ? 0 : 1;
