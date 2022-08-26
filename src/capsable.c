@@ -7,9 +7,9 @@
 #define DEBUG if(0)  
 #define VERSION 8
 
-//fuzzy. VSCode needs no sleep, gnome apps a lot
-#define SLEEP_SHORT_US 1000
-#define SLEEP_MEDIUM_US 2000
+//pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
+#define SLEEP_SHORT_US 6000 //1000
+#define SLEEP_MEDIUM_US 8000 //2000
 
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 
@@ -126,7 +126,7 @@ void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key
 int main(int argc, char **argv) 
 {
 
-    DEBUG fprintf(stderr, "CAPSABLE %i STARTED\n", VERSION);
+    fprintf(stderr, "CAPSABLE %i STARTED\n", VERSION);
 
     setbuf(stdin, NULL), setbuf(stdout, NULL);
 
