@@ -4,12 +4,12 @@
 #include <unistd.h>
 #include <string.h>
 
-#define DEBUG if(1)  
-#define VERSION 10
+#define DEBUG if(0)  
+#define VERSION 11
 
 //pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
-#define SLEEP_SHORT_US 6000 //1000
-#define SLEEP_MEDIUM_US 8000 //2000
+#define SLEEP_SHORT_US 1000
+#define SLEEP_MEDIUM_US 2000
 
 //needs to be in sync with compose key configured in Gnome. Used for öäü
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
