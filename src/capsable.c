@@ -3,13 +3,13 @@
 #include <linux/input.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define DEBUG if(0)  
-#define VERSION 11
+#define VERSION 12
 
 //pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
-#define SLEEP_SHORT_US 1000
-#define SLEEP_MEDIUM_US 2000
+#define SLEEP_SHORT_US 6000
 
 //needs to be in sync with compose key configured in Gnome. Used for öäü
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
@@ -22,9 +22,22 @@ void sleepShort()
 {
     usleep(SLEEP_SHORT_US);
 }
-void sleepMedium()
+
+bool isKeycodeModifier(unsigned short code)
 {
-    usleep(SLEEP_MEDIUM_US);
+    switch(code)
+    {
+        case KEY_LEFTSHIFT:
+        case KEY_LEFTCTRL:
+        case KEY_LEFTMETA:
+        case KEY_LEFTALT:
+        case KEY_RIGHTSHIFT:
+        case KEY_RIGHTCTRL:
+        case KEY_RIGHTMETA:
+        case KEY_RIGHTALT:
+            return true;
+        return false;
+    }
 }
 
 void writeSyn()
@@ -41,7 +54,6 @@ void writeKeyOverride(unsigned short code, signed int value)
     event.value = value;
     fwrite(&event, sizeof(event), 1, stdout);
     writeSyn();
-//    sleepMedium();
 }
 
 void writeKey(unsigned short code)
@@ -220,7 +232,7 @@ int main(int argc, char **argv)
         //CAPS cursor, ASDF
         if(capsIsDown)
         {
-            if(!event.value) //down+up is sent on key down
+            if(! isKeycodeModifier(event.code) && !event.value) //down+up is sent on key down
                 continue;
 
                  if (event.code == KEY_J)
