@@ -4,13 +4,14 @@
 #include <unistd.h>
 #include <string.h>
 
-#define DEBUG if(0)  
-#define VERSION 8
+#define DEBUG if(1)  
+#define VERSION 10
 
 //pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_SHORT_US 6000 //1000
 #define SLEEP_MEDIUM_US 8000 //2000
 
+//needs to be in sync with compose key configured in Gnome. Used for öäü
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 
 const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
@@ -46,6 +47,12 @@ void writeKeyOverride(unsigned short code, signed int value)
 void writeKey(unsigned short code)
 { 
     writeKeyOverride(code, event.value);
+}
+
+void writeKeyMakeBreak(unsigned short code)
+{ 
+    writeKeyOverride(code, 1);
+    writeKeyOverride(code, 0);
 }
 
 void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
@@ -213,26 +220,29 @@ int main(int argc, char **argv)
         //CAPS cursor, ASDF
         if(capsIsDown)
         {
-            if (event.code == KEY_J)
-                writeKey(KEY_LEFT);
+            if(!event.value) //down+up is sent on key down
+                continue;
+
+                 if (event.code == KEY_J)
+                writeKeyMakeBreak(KEY_LEFT);
             else if (event.code == KEY_L)
-                writeKey(KEY_RIGHT);
+                writeKeyMakeBreak(KEY_RIGHT);
             else if (event.code == KEY_I)
-                writeKey(KEY_UP);
+                writeKeyMakeBreak(KEY_UP);
             else if (event.code == KEY_K)
-                writeKey(KEY_DOWN);
+                writeKeyMakeBreak(KEY_DOWN);
             else if (event.code == KEY_O)
-                writeKey(KEY_PAGEUP);
+                writeKeyMakeBreak(KEY_PAGEUP);
             else if (event.code == KEY_DOT)
-                writeKey(KEY_PAGEDOWN);
+                writeKeyMakeBreak(KEY_PAGEDOWN);
             else if (event.code == KEY_H)
-                writeKey(KEY_BACKSPACE);
+                writeKeyMakeBreak(KEY_BACKSPACE);
             else if (event.code == KEY_SEMICOLON)
-                writeKey(KEY_DELETE);
+                writeKeyMakeBreak(KEY_DELETE);
             else if (event.code == KEY_Z)
-                writeKey(KEY_HOME);
+                writeKeyMakeBreak(KEY_HOME);
             else if (event.code == KEY_U)
-                writeKey(KEY_END);
+                writeKeyMakeBreak(KEY_END);
             else if (event.code == KEY_N) 
                 writeModdedKey(2,KEY_LEFT);
             else if (event.code == KEY_M) 
