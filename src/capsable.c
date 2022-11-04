@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "12b"
+#define VERSION "13"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -37,8 +37,8 @@ int isKeycodeModifier(unsigned short code)
     case KEY_RIGHTMETA:
     case KEY_RIGHTALT:
         return 1;
-        return 0;
     }
+    return 0;
 }
 
 void writeSyn()
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
     if (argc > 1 && strcmp("--apple", argv[1]) == 0)
     {
         keyboardIsApple = 1;
-        DEBUG fprintf(stderr, "--apple mode\n", VERSION);
+        DEBUG fprintf(stderr, "--apple mode\n");
     }
 
     while (fread(&event, sizeof(event), 1, stdin) == 1)
