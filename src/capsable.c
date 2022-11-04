@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "13"
+#define VERSION "14 with ShiftLock combo"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -148,6 +148,16 @@ void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key
 }
 // óäääÄÄÄJörn
 
+int capsLockState = 0; // weak. Assumes shift lock is off on startup
+void setCapsLockState(int newCapsLockState)
+{
+    if (newCapsLockState != capsLockState)
+    {
+        capsLockState = newCapsLockState;
+        writeKeyMakeBreak(KEY_CAPSLOCK);
+    }
+}
+
 int main(int argc, char **argv)
 {
 
@@ -158,6 +168,8 @@ int main(int argc, char **argv)
     int escIsDown = 0;
     int capsIsDown = 0;
     int altIsDown = 0;
+    int lshiftIsDown = 0;
+    int rshiftIsDown = 0;
 
     int keyboardIsApple = 0;
     if (argc > 1 && strcmp("--apple", argv[1]) == 0)
@@ -241,6 +253,20 @@ int main(int argc, char **argv)
             event.code = KEY_Z;
         else if (event.code == KEY_Z)
             event.code = KEY_Y;
+
+        // set CapsLock state with LSHF+RSHF
+        if (event.code == KEY_LEFTSHIFT)
+        {
+            lshiftIsDown = event.value;
+            if (rshiftIsDown && lshiftIsDown)
+                setCapsLockState(0);
+        }
+        else if (event.code == KEY_RIGHTSHIFT)
+        {
+            rshiftIsDown = event.value;
+            if (rshiftIsDown && lshiftIsDown)
+                setCapsLockState(1);
+        }
 
         // CAPS cursor, ASDF
         if (capsIsDown)
