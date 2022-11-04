@@ -3,51 +3,52 @@
 #include <linux/input.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdbool.h>
 
-#define DEBUG if(0)  
-#define VERSION 12
+#define DEBUG if (0)
+#define VERSION "12b"
 
-//pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
-#define SLEEP_SHORT_US 6000
+// pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
+#define SLEEP_BETWEEN_KEYS_US 6000
 
-//needs to be in sync with compose key configured in Gnome. Used for öäü
+// needs to be in sync with compose key configured in Gnome. Used for öäü
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 
+// EV_SYN is sent between key 'batches' (to help the OS process multi-byte events)
 const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
+
 struct input_event event, modEvent;
 int key_handled = 0;
 
-void sleepShort()
+void sleepBetweenKeys()
 {
-    usleep(SLEEP_SHORT_US);
+    usleep(SLEEP_BETWEEN_KEYS_US);
 }
 
-bool isKeycodeModifier(unsigned short code)
+int isKeycodeModifier(unsigned short code)
 {
-    switch(code)
+    switch (code)
     {
-        case KEY_LEFTSHIFT:
-        case KEY_LEFTCTRL:
-        case KEY_LEFTMETA:
-        case KEY_LEFTALT:
-        case KEY_RIGHTSHIFT:
-        case KEY_RIGHTCTRL:
-        case KEY_RIGHTMETA:
-        case KEY_RIGHTALT:
-            return true;
-        return false;
+    case KEY_LEFTSHIFT:
+    case KEY_LEFTCTRL:
+    case KEY_LEFTMETA:
+    case KEY_LEFTALT:
+    case KEY_RIGHTSHIFT:
+    case KEY_RIGHTCTRL:
+    case KEY_RIGHTMETA:
+    case KEY_RIGHTALT:
+        return 1;
+        return 0;
     }
 }
 
 void writeSyn()
 {
-    //syn_report.time
+    // syn_report.time
     fwrite(&syn_report, sizeof(syn_report), 1, stdout);
 }
 
 void writeKeyOverride(unsigned short code, signed int value)
-{ 
+{
     DEBUG fprintf(stderr, "KEY out: %u - %i\n", code, value);
     key_handled = 1;
     event.code = code;
@@ -57,12 +58,12 @@ void writeKeyOverride(unsigned short code, signed int value)
 }
 
 void writeKey(unsigned short code)
-{ 
+{
     writeKeyOverride(code, event.value);
 }
 
 void writeKeyMakeBreak(unsigned short code)
-{ 
+{
     writeKeyOverride(code, 1);
     writeKeyOverride(code, 0);
 }
@@ -70,28 +71,32 @@ void writeKeyMakeBreak(unsigned short code)
 void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
 {
     key_handled = 1;
-    if(!value) //entire sequence is written on key down
+    if (!value) // entire sequence is written on key down
         return;
 
     event.code = code;
 
     modEvent.type = EV_KEY;
-    if (modmask & 0b0001) {
+    if (modmask & 0b0001)
+    {
         DEBUG fprintf(stderr, "modmask lshf");
         modEvent.code = KEY_LEFTSHIFT;
     }
-    else if (modmask & 0b010000) {
+    else if (modmask & 0b010000)
+    {
         DEBUG fprintf(stderr, "modmask rshf");
         modEvent.code = KEY_RIGHTSHIFT;
     }
-    else if (modmask & 0b0010) {
+    else if (modmask & 0b0010)
+    {
         DEBUG fprintf(stderr, "modmask lctrl");
         modEvent.code = KEY_LEFTCTRL;
     }
     else
         modEvent.code = 0;
 
-    if(modEvent.code) {
+    if (modEvent.code)
+    {
         modEvent.value = 1;
         modEvent.time.tv_sec = event.time.tv_sec;
         modEvent.time.tv_usec = event.time.tv_usec - 1;
@@ -99,29 +104,30 @@ void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
             modEvent.time.tv_sec--;
         fwrite(&modEvent, sizeof(modEvent), 1, stdout);
         writeSyn();
-        sleepShort();
+        sleepBetweenKeys();
     }
 
     event.value = 1;
     writeKey(event.code);
     writeSyn();
-    sleepShort();
+    sleepBetweenKeys();
 
     event.value = 0;
     event.time.tv_usec++;
     writeKey(event.code);
     writeSyn();
-    sleepShort();
+    sleepBetweenKeys();
 
-    if(modEvent.code) {
+    if (modEvent.code)
+    {
         modEvent.value = 0;
         modEvent.time.tv_sec = event.time.tv_sec;
         modEvent.time.tv_usec = event.time.tv_usec + 1;
         if (modEvent.time.tv_usec == 0)
-            modEvent.time.tv_sec+=1;
+            modEvent.time.tv_sec += 1;
         fwrite(&modEvent, sizeof(modEvent), 1, stdout);
         writeSyn();
-        sleepShort();
+        sleepBetweenKeys();
     }
 }
 
@@ -132,7 +138,7 @@ void writeModdedKey(int modmask, unsigned short code)
 
 void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key2)
 {
-    if(!event.value)  //compose everything on key down
+    if (!event.value) // compose everything on key down
         return;
 
     writeKeyOverride(COMPOSE_KEY, 1);
@@ -140,12 +146,12 @@ void compose(int modmask1, unsigned short key1, int modmask2, unsigned short key
     writeModdedKeyOverride(modmask1, key1, 1);
     writeModdedKeyOverride(modmask2, key2, 1);
 }
-// óäääÄÄÄ"Ä
+// óäääÄÄÄJörn
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
 
-    fprintf(stderr, "CAPSABLE %i STARTED\n", VERSION);
+    fprintf(stderr, "CAPSABLE %s STARTED\n", VERSION);
 
     setbuf(stdin, NULL), setbuf(stdout, NULL);
 
@@ -154,31 +160,35 @@ int main(int argc, char **argv)
     int altIsDown = 0;
 
     int keyboardIsApple = 0;
-    if (argc > 1 && strcmp("--apple", argv[1]) == 0) {
+    if (argc > 1 && strcmp("--apple", argv[1]) == 0)
+    {
         keyboardIsApple = 1;
         DEBUG fprintf(stderr, "--apple mode\n", VERSION);
     }
 
-    while (fread(&event, sizeof(event), 1, stdin) == 1) 
+    while (fread(&event, sizeof(event), 1, stdin) == 1)
     {
         key_handled = 0;
 
-        if(event.type == EV_MSC && event.code == MSC_SCAN)
+        if (event.type == EV_MSC && event.code == MSC_SCAN)
             continue;
 
-        if(event.type == EV_SYN) {
-            DEBUG fprintf(stderr," SYN: %i\n",event.code);
+        if (event.type == EV_SYN)
+        {
+            DEBUG fprintf(stderr, " SYN: %i\n", event.code);
             fwrite(&event, sizeof(event), 1, stdout);
             continue;
         }
 
-        if(event.type != EV_KEY) {
-            DEBUG fprintf(stderr,"UNEXPECTED EV TYPE: %i\n",event.type);
+        if (event.type != EV_KEY)
+        {
+            DEBUG fprintf(stderr, "UNEXPECTED EV TYPE: %i\n", event.type);
             fwrite(&event, sizeof(event), 1, stdout);
             continue;
         }
 
-        if (keyboardIsApple) {
+        if (keyboardIsApple)
+        {
             if (event.code == KEY_LEFTALT)
                 event.code = KEY_LEFTMETA;
             else if (event.code == KEY_LEFTMETA)
@@ -193,49 +203,52 @@ int main(int argc, char **argv)
                 event.code = KEY_FN;
         }
 
-        //ESC, VIRTUAL MODIFIERS
+        // ESC, VIRTUAL MODIFIERS
         if (event.code == KEY_ESC ||
-            event.code == KEY_F1) {
+            event.code == KEY_F1)
+        {
             escIsDown = event.value == 0 ? 0 : 1;
             DEBUG fprintf(stderr, "ESC/F1 escIsDown:%u\n", escIsDown);
             writeKey(event.code);
             continue;
         }
-        else if (escIsDown && event.code == KEY_X)  {
+        else if (escIsDown && event.code == KEY_X)
+        {
             fprintf(stderr, "capsable exit\n");
             break;
         }
-        else if (event.code == KEY_CAPSLOCK) {
+        else if (event.code == KEY_CAPSLOCK)
+        {
             capsIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
-        else if (event.code == KEY_RIGHTALT
-                || event.code == KEY_LEFTALT) {
+        else if (event.code == KEY_RIGHTALT || event.code == KEY_LEFTALT)
+        {
             altIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
 
-        //REWIRE
+        // REWIRE
         else if (event.code == KEY_RIGHTCTRL)
             event.code = KEY_LEFTALT;
         else if (event.code == KEY_SLASH)
             event.code = KEY_RIGHTSHIFT;
         else if (event.code == KEY_BACKSLASH)
             event.code = KEY_ENTER;
-        else if (event.code == KEY_102ND) //ISO boards left <>
+        else if (event.code == KEY_102ND) // ISO boards left <>
             event.code = KEY_LEFTSHIFT;
         else if (event.code == KEY_Y)
             event.code = KEY_Z;
         else if (event.code == KEY_Z)
             event.code = KEY_Y;
 
-        //CAPS cursor, ASDF
-        if(capsIsDown)
+        // CAPS cursor, ASDF
+        if (capsIsDown)
         {
-            if(! isKeycodeModifier(event.code) && !event.value) //down+up is sent on key down
+            if (!isKeycodeModifier(event.code) && !event.value) // down+up is sent on key down
                 continue;
 
-                 if (event.code == KEY_J)
+            if (event.code == KEY_J)
                 writeKeyMakeBreak(KEY_LEFT);
             else if (event.code == KEY_L)
                 writeKeyMakeBreak(KEY_RIGHT);
@@ -255,14 +268,14 @@ int main(int argc, char **argv)
                 writeKeyMakeBreak(KEY_HOME);
             else if (event.code == KEY_U)
                 writeKeyMakeBreak(KEY_END);
-            else if (event.code == KEY_N) 
-                writeModdedKey(2,KEY_LEFT);
-            else if (event.code == KEY_M) 
-                writeModdedKey(2,KEY_RIGHT);
-            else if (event.code == KEY_COMMA) 
-                writeModdedKey(1,KEY_RIGHT);
-            
-            else if (event.code == KEY_A) 
+            else if (event.code == KEY_N)
+                writeModdedKey(2, KEY_LEFT);
+            else if (event.code == KEY_M)
+                writeModdedKey(2, KEY_RIGHT);
+            else if (event.code == KEY_COMMA)
+                writeModdedKey(1, KEY_RIGHT);
+
+            else if (event.code == KEY_A)
                 writeModdedKey(2, KEY_Z);
             else if (event.code == KEY_S)
                 writeModdedKey(2, KEY_X);
@@ -271,78 +284,76 @@ int main(int argc, char **argv)
             else if (event.code == KEY_F)
                 writeModdedKey(2, KEY_V);
         }
-        //ALT CHARS !@#$%^&()
-        else if(altIsDown)
+        // ALT CHARS !@#$%^&()
+        else if (altIsDown)
         {
-                 if (event.code == KEY_Q) 
+            if (event.code == KEY_Q)
                 writeModdedKey(1, KEY_1);
-            else if (event.code == KEY_W) 
+            else if (event.code == KEY_W)
                 writeModdedKey(1, KEY_2);
-            else if (event.code == KEY_E) 
+            else if (event.code == KEY_E)
                 writeModdedKey(1, KEY_3);
-            else if (event.code == KEY_R) 
+            else if (event.code == KEY_R)
                 writeModdedKey(1, KEY_4);
-            else if (event.code == KEY_T) 
+            else if (event.code == KEY_T)
                 writeModdedKey(1, KEY_5);
-            else if (event.code == KEY_Z) //TODO read original event
+            else if (event.code == KEY_Z) // TODO read original event
                 writeModdedKey(1, KEY_6);
-            else if (event.code == KEY_U) 
+            else if (event.code == KEY_U)
                 writeModdedKey(1, KEY_7);
-            else if (event.code == KEY_I) 
+            else if (event.code == KEY_I)
                 writeModdedKey(1, KEY_9);
-            else if (event.code == KEY_O) 
+            else if (event.code == KEY_O)
                 writeModdedKey(1, KEY_0);
-            else if (event.code == KEY_P) 
+            else if (event.code == KEY_P)
                 writeModdedKey(1, KEY_SLASH);
-            else if (event.code == KEY_A) 
+            else if (event.code == KEY_A)
                 writeModdedKey(0, KEY_MINUS);
-            else if (event.code == KEY_S) 
+            else if (event.code == KEY_S)
                 writeModdedKey(1, KEY_EQUAL);
-            else if (event.code == KEY_D) 
+            else if (event.code == KEY_D)
                 writeModdedKey(1, KEY_8);
-            else if (event.code == KEY_F) 
+            else if (event.code == KEY_F)
                 writeModdedKey(0, KEY_SLASH);
-            else if (event.code == KEY_G) 
+            else if (event.code == KEY_G)
                 writeModdedKey(0, KEY_EQUAL);
-            else if (event.code == KEY_H) 
+            else if (event.code == KEY_H)
                 writeModdedKey(0, KEY_BACKSPACE);
-            else if (event.code == KEY_J) 
-                 writeModdedKey(0, KEY_BACKSLASH);
-            else if (event.code == KEY_K) 
+            else if (event.code == KEY_J)
+                writeModdedKey(0, KEY_BACKSLASH);
+            else if (event.code == KEY_K)
                 writeModdedKey(1, KEY_LEFTBRACE);
-            else if (event.code == KEY_L) 
+            else if (event.code == KEY_L)
                 writeModdedKey(1, KEY_RIGHTBRACE);
-            else if (event.code == KEY_Y) //TODO read orig event not rewired
+            else if (event.code == KEY_Y) // TODO read orig event not rewired
                 writeModdedKey(0, KEY_GRAVE);
-            else if (event.code == KEY_X) 
+            else if (event.code == KEY_X)
                 writeModdedKey(1, KEY_GRAVE);
-            else if (event.code == KEY_C) 
+            else if (event.code == KEY_C)
                 writeModdedKey(1, KEY_BACKSLASH);
-            else if (event.code == KEY_V) 
+            else if (event.code == KEY_V)
                 writeModdedKey(1, KEY_MINUS);
-            else if (event.code == KEY_B) 
-                 continue;
-            else if (event.code == KEY_N) 
+            else if (event.code == KEY_B)
+                continue;
+            else if (event.code == KEY_N)
                 writeModdedKey(1, KEY_COMMA);
-            else if (event.code == KEY_M) 
+            else if (event.code == KEY_M)
                 writeModdedKey(1, KEY_DOT);
-            else if (event.code == KEY_COMMA) 
+            else if (event.code == KEY_COMMA)
                 writeModdedKey(0, KEY_LEFTBRACE);
-            else if (event.code == KEY_DOT) 
+            else if (event.code == KEY_DOT)
                 writeModdedKey(0, KEY_RIGHTBRACE);
             // öäü ÖÄÜ
-            else if (event.code == KEY_SEMICOLON) 
+            else if (event.code == KEY_SEMICOLON)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_O);
-            else if (event.code == KEY_APOSTROPHE) 
+            else if (event.code == KEY_APOSTROPHE)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_A);
-            else if (event.code == KEY_LEFTBRACE) 
+            else if (event.code == KEY_LEFTBRACE)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_U);
         }
 
-        //write
+        // write
         if (!key_handled)
             writeKey(event.code);
     }
 }
-
-// öäüüöäJörn
