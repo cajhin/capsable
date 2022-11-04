@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "14 with ShiftLock combo"
+#define VERSION "14d with ShiftLock combo"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -16,7 +16,7 @@ const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 // EV_SYN is sent between key 'batches' (to help the OS process multi-byte events)
 const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
 
-struct input_event event, modEvent;
+struct input_event event, ev_out;
 int key_handled = 0;
 
 void sleepBetweenKeys()
@@ -51,9 +51,11 @@ void writeKeyOverride(unsigned short code, signed int value)
 {
     DEBUG fprintf(stderr, "KEY out: %u - %i\n", code, value);
     key_handled = 1;
-    event.code = code;
-    event.value = value;
-    fwrite(&event, sizeof(event), 1, stdout);
+    ev_out.code = code;
+    ev_out.value = value;
+    ev_out.time = event.time;
+    ev_out.type = event.type;
+    fwrite(&ev_out, sizeof(ev_out), 1, stdout);
     writeSyn();
 }
 
@@ -74,61 +76,33 @@ void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
     if (!value) // entire sequence is written on key down
         return;
 
-    event.code = code;
+    unsigned short modcode;
 
-    modEvent.type = EV_KEY;
     if (modmask & 0b0001)
     {
         DEBUG fprintf(stderr, "modmask lshf");
-        modEvent.code = KEY_LEFTSHIFT;
+        modcode = KEY_LEFTSHIFT;
     }
     else if (modmask & 0b010000)
     {
         DEBUG fprintf(stderr, "modmask rshf");
-        modEvent.code = KEY_RIGHTSHIFT;
+        modcode = KEY_RIGHTSHIFT;
     }
     else if (modmask & 0b0010)
     {
         DEBUG fprintf(stderr, "modmask lctrl");
-        modEvent.code = KEY_LEFTCTRL;
+        modcode = KEY_LEFTCTRL;
     }
     else
-        modEvent.code = 0;
+        modcode = 0;
 
-    if (modEvent.code)
-    {
-        modEvent.value = 1;
-        modEvent.time.tv_sec = event.time.tv_sec;
-        modEvent.time.tv_usec = event.time.tv_usec - 1;
-        if (event.time.tv_usec == 0)
-            modEvent.time.tv_sec--;
-        fwrite(&modEvent, sizeof(modEvent), 1, stdout);
-        writeSyn();
-        sleepBetweenKeys();
-    }
+    if (modcode)
+        writeKeyOverride(modcode, 1);
 
-    event.value = 1;
-    writeKey(event.code);
-    writeSyn();
-    sleepBetweenKeys();
+    writeKeyMakeBreak(code);
 
-    event.value = 0;
-    event.time.tv_usec++;
-    writeKey(event.code);
-    writeSyn();
-    sleepBetweenKeys();
-
-    if (modEvent.code)
-    {
-        modEvent.value = 0;
-        modEvent.time.tv_sec = event.time.tv_sec;
-        modEvent.time.tv_usec = event.time.tv_usec + 1;
-        if (modEvent.time.tv_usec == 0)
-            modEvent.time.tv_sec += 1;
-        fwrite(&modEvent, sizeof(modEvent), 1, stdout);
-        writeSyn();
-        sleepBetweenKeys();
-    }
+    if (modcode)
+        writeKeyOverride(modcode, 0);
 }
 
 void writeModdedKey(int modmask, unsigned short code)
@@ -309,6 +283,10 @@ int main(int argc, char **argv)
                 writeModdedKey(2, KEY_C);
             else if (event.code == KEY_F)
                 writeModdedKey(2, KEY_V);
+            else if (event.code == KEY_G)
+                writeModdedKey(2, KEY_Y);
+            else if (!isKeycodeModifier(event.code))
+                continue; //drop undefined caps+X combos
         }
         // ALT CHARS !@#$%^&()
         else if (altIsDown)
