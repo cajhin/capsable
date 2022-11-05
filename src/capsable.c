@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "14d with ShiftLock combo"
+#define VERSION "14e with ShiftLock combo"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -67,6 +67,7 @@ void writeKey(unsigned short code)
 void writeKeyMakeBreak(unsigned short code)
 {
     writeKeyOverride(code, 1);
+    sleepBetweenKeys();
     writeKeyOverride(code, 0);
 }
 
@@ -97,12 +98,18 @@ void writeModdedKeyOverride(int modmask, unsigned short code, signed int value)
         modcode = 0;
 
     if (modcode)
+    {
         writeKeyOverride(modcode, 1);
+        sleepBetweenKeys();
+    }
 
     writeKeyMakeBreak(code);
 
     if (modcode)
+    {
         writeKeyOverride(modcode, 0);
+        sleepBetweenKeys();
+    }
 }
 
 void writeModdedKey(int modmask, unsigned short code)
