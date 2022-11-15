@@ -22,6 +22,6 @@ sleep 0.2
 echo -n '. '
 sleep 0.2
 
-sudo nice -n -20 $BUILDDIR/intercept -g $INTERDEV | nice -n -20 $BUILDDIR/capsable | nice -n -20 $BUILDDIR/uinput_$DISTRO -d $INTERDEV
+sudo nice -n -20 $BUILDDIR/intercept -g $INTERDEV | nice -n -20 $BUILDDIR/capsable --apple | nice -n -20 $BUILDDIR/uinput_$DISTRO -d $INTERDEV
 #sudo $BUILDDIR/intercept -g $INTERDEV | $BUILDDIR/capsable | $BUILDDIR/uinput_$DISTRO -d $INTERDEV
 
