@@ -4,11 +4,12 @@ then
   DISTRO=ubu
 fi
 
-#INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd
-
 #bluetooth devices are not listed in /by-path
 #figure out the name with 'evtest' tool
-INTERDEV=/dev/input/event4
+
+INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd    #VirtualBox and Dell 9350
+#INTERDEV=/dev/input/event4  #apple magic keyboard?
+#INTERDEV=/dev/input/event6  #apple air keyboard
 
 BUILDDIR=/home/jjj/git/capsable/build
 sleep 1
