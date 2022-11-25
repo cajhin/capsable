@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "14e with ShiftLock combo"
+#define VERSION "15 fix stuck keys"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -197,11 +197,10 @@ int main(int argc, char **argv)
         }
 
         // ESC, VIRTUAL MODIFIERS
-        if (event.code == KEY_ESC ||
-            event.code == KEY_F1)
+        if (event.code == KEY_ESC)
         {
             escIsDown = event.value == 0 ? 0 : 1;
-            DEBUG fprintf(stderr, "ESC/F1 escIsDown:%u\n", escIsDown);
+            DEBUG fprintf(stderr, "ESC escIsDown:%u\n", escIsDown);
             writeKey(event.code);
             continue;
         }
@@ -250,11 +249,8 @@ int main(int argc, char **argv)
         }
 
         // CAPS cursor, ASDF
-        if (capsIsDown)
+        if (capsIsDown && event.value)
         {
-            if (!isKeycodeModifier(event.code) && !event.value) // down+up is sent on key down
-                continue;
-
             if (event.code == KEY_J)
                 writeKeyMakeBreak(KEY_LEFT);
             else if (event.code == KEY_L)
@@ -296,7 +292,7 @@ int main(int argc, char **argv)
                 continue; //drop undefined caps+X combos
         }
         // ALT CHARS !@#$%^&()
-        else if (altIsDown)
+        else if (altIsDown && event.value)
         {
             if (event.code == KEY_Q)
                 writeModdedKey(1, KEY_1);
@@ -364,6 +360,7 @@ int main(int argc, char **argv)
         }
 
         // write
+        // note: explicitly break, even if maybe there was no make, to avoid stuck keys
         if (!key_handled)
             writeKey(event.code);
     }
