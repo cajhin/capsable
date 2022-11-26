@@ -5,7 +5,8 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "15 fix stuck keys"
+
+#define VERSION "v15 (fix stuck keys)"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
 #define SLEEP_BETWEEN_KEYS_US 6000
@@ -142,7 +143,7 @@ void setCapsLockState(int newCapsLockState)
 int main(int argc, char **argv)
 {
 
-    fprintf(stderr, "CAPSABLE %s STARTED\n", VERSION);
+    fprintf(stderr, "\nCAPSABLE %s STARTED\n", VERSION);
 
     setbuf(stdin, NULL), setbuf(stdout, NULL);
 

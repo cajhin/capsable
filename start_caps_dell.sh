@@ -1,27 +1,30 @@
-DISTRO=fed
-if [ -e /usr/lib64/libyaml-cpp.so.0.7 ]
+if [ -e /usr/lib64/libyaml-cpp.so.0.6 ]
+then
+  DISTRO=fed
+elif [ -e /usr/lib64/libyaml-cpp.so.0.7 ]
 then
   DISTRO=ubu
+else
+  echo "unknown version of libyaml-cpp"
+  exit
 fi
 
+if [ -e /dev/input/by-path/platform-i8042-serio-0-event-kbd ]
+then
+  INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd  #VirtualBox and Dell 9350
+else
+  echo "unknown event#, figure out the name with 'evtest' tool"
+  exit
+fi
 #bluetooth devices are not listed in /by-path
-#figure out the name with 'evtest' tool
-
-INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd    #VirtualBox and Dell 9350
 #INTERDEV=/dev/input/event4  #apple magic keyboard?
 #INTERDEV=/dev/input/event6  #apple air keyboard
 
-
-BUILDDIR=/home/jjj/git/capsable/build
 echo -n 'please release all keys'
-sleep 0.2
-echo -n '.'
-sleep 0.2
-echo -n '.'
-sleep 0.2
-echo -n '. '
-sleep 0.2
+for (( i=0; i<10; ++i )); do
+    echo -n '.'
+    sleep 0.05
+done
 
+BUILDDIR=$(dirname $0)/build
 sudo nice -n -20 $BUILDDIR/intercept -g $INTERDEV | nice -n -20 $BUILDDIR/capsable | nice -n -20 $BUILDDIR/uinput_$DISTRO -d $INTERDEV
-#sudo $BUILDDIR/intercept -g $INTERDEV | $BUILDDIR/capsable | $BUILDDIR/uinput_$DISTRO -d $INTERDEV
-
