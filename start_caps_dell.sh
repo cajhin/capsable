@@ -20,6 +20,7 @@ fi
 #INTERDEV=/dev/input/event4  #apple magic keyboard?
 #INTERDEV=/dev/input/event6  #apple air keyboard
 
+#if the enter key is down on startup -> hangs (interception uses different device?)
 echo -n 'please release all keys'
 for (( i=0; i<10; ++i )); do
     echo -n '.'
