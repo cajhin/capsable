@@ -5,11 +5,10 @@
 #include <string.h>
 
 #define DEBUG if (0)
+#define VERSION "15 with ESC,. for timing change"
 
-#define VERSION "v15 (fix stuck keys)"
-
-// pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot?
-#define SLEEP_BETWEEN_KEYS_US 6000
+// pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot? VirtualBox a lot lot
+#define DEFAULT_SLEEP_BETWEEN_KEYS_US 6000
 
 // needs to be in sync with compose key configured in Gnome. Used for öäü
 const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
@@ -19,6 +18,7 @@ const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .valu
 
 struct input_event event, ev_out;
 int key_handled = 0;
+int SLEEP_BETWEEN_KEYS_US = DEFAULT_SLEEP_BETWEEN_KEYS_US;
 
 void sleepBetweenKeys()
 {
@@ -140,13 +140,31 @@ void setCapsLockState(int newCapsLockState)
     }
 }
 
+void handleEscapeDownCombo(unsigned short ecode) 
+{
+    switch (ecode)
+    {
+        case KEY_DOT:
+            SLEEP_BETWEEN_KEYS_US += 1000;
+            fprintf(stderr, "Sleep:%d\n", SLEEP_BETWEEN_KEYS_US);
+        break;
+        case KEY_COMMA:
+            if(SLEEP_BETWEEN_KEYS_US >= 1000)
+            {
+                SLEEP_BETWEEN_KEYS_US -= 1000;
+                fprintf(stderr, "Sleep:%d\n", SLEEP_BETWEEN_KEYS_US);
+            }
+        break;
+    }
+}
+
+
 int main(int argc, char **argv)
 {
 
-    fprintf(stderr, "\nCAPSABLE %s STARTED\n", VERSION);
+    fprintf(stderr, "CAPSABLE %s STARTED\n", VERSION);
 
     setbuf(stdin, NULL), setbuf(stdout, NULL);
-
     int escIsDown = 0;
     int capsIsDown = 0;
     int altIsDown = 0;
@@ -198,17 +216,24 @@ int main(int argc, char **argv)
         }
 
         // ESC, VIRTUAL MODIFIERS
-        if (event.code == KEY_ESC)
+        if (event.code == KEY_ESC ||
+            event.code == KEY_F1)
         {
             escIsDown = event.value == 0 ? 0 : 1;
-            DEBUG fprintf(stderr, "ESC escIsDown:%u\n", escIsDown);
+            DEBUG fprintf(stderr, "ESC/F1 escIsDown:%u\n", escIsDown);
             writeKey(event.code);
             continue;
         }
-        else if (escIsDown && event.code == KEY_X)
+        else if (escIsDown)
         {
-            fprintf(stderr, "capsable exit\n");
-            break;
+            if(event.code == KEY_X)
+            {
+                fprintf(stderr, "capsable exit\n");
+                break;
+            }
+            if(event.value != 0)
+                handleEscapeDownCombo(event.code);
+            continue;
         }
         else if (event.code == KEY_CAPSLOCK)
         {
@@ -250,8 +275,11 @@ int main(int argc, char **argv)
         }
 
         // CAPS cursor, ASDF
-        if (capsIsDown && event.value)
+        if (capsIsDown)
         {
+            if (!isKeycodeModifier(event.code) && !event.value) // down+up is sent on key down
+                continue;
+
             if (event.code == KEY_J)
                 writeKeyMakeBreak(KEY_LEFT);
             else if (event.code == KEY_L)
@@ -293,7 +321,7 @@ int main(int argc, char **argv)
                 continue; //drop undefined caps+X combos
         }
         // ALT CHARS !@#$%^&()
-        else if (altIsDown && event.value)
+        else if (altIsDown)
         {
             if (event.code == KEY_Q)
                 writeModdedKey(1, KEY_1);
@@ -361,8 +389,8 @@ int main(int argc, char **argv)
         }
 
         // write
-        // note: explicitly break, even if maybe there was no make, to avoid stuck keys
         if (!key_handled)
             writeKey(event.code);
     }
+
 }
