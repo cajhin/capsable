@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "v16 with ESC,. for timing change"
+#define VERSION "v17 with Tab"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot? VirtualBox a lot lot
 #define DEFAULT_SLEEP_BETWEEN_KEYS_US 6000
@@ -16,7 +16,8 @@ const unsigned short COMPOSE_KEY = KEY_RIGHTMETA;
 // EV_SYN is sent between key 'batches' (to help the OS process multi-byte events)
 const struct input_event syn_report = {.type = EV_SYN, .code = SYN_REPORT, .value = 0};
 
-struct input_event event, ev_out;
+struct input_event event, ev_out, previous_event, previous_event_tmp;
+
 int key_handled = 0;
 int SLEEP_BETWEEN_KEYS_US = DEFAULT_SLEEP_BETWEEN_KEYS_US;
 
@@ -161,13 +162,12 @@ void handleEscapeDownCombo(unsigned short ecode)
 
 int main(int argc, char **argv)
 {
-
     fprintf(stderr, "\nCAPSABLE %s STARTED\n", VERSION);
-
     setbuf(stdin, NULL), setbuf(stdout, NULL);
 
     int escIsDown = 0;
     int capsIsDown = 0;
+    int tabIsDown = 0;
     int altIsDown = 0;
     int lshiftIsDown = 0;
     int rshiftIsDown = 0;
@@ -199,6 +199,10 @@ int main(int argc, char **argv)
             fwrite(&event, sizeof(event), 1, stdout);
             continue;
         }
+
+        previous_event.code = previous_event_tmp.code;
+        previous_event_tmp.code = event.code;
+        DEBUG fprintf(stderr, " IN: %i\n", event.code);
 
         if (keyboardIsApple)
         {
@@ -233,6 +237,14 @@ int main(int argc, char **argv)
             }
             if(event.value != 0)
                 handleEscapeDownCombo(event.code);
+            continue;
+        }
+        else if (event.code == KEY_TAB)
+        {
+            DEBUG fprintf(stderr, "prev:%d",previous_event.code);
+            tabIsDown = event.value == 0 ? 0 : 1;
+            if(!tabIsDown && previous_event.code == KEY_TAB)
+                writeKeyMakeBreak(KEY_TAB);
             continue;
         }
         else if (event.code == KEY_CAPSLOCK)
@@ -383,6 +395,43 @@ int main(int argc, char **argv)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_A);
             else if (event.code == KEY_LEFTBRACE)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_U);
+        }
+        if (tabIsDown && event.value)
+        {
+            if (event.code == KEY_U)
+                writeKeyMakeBreak(KEY_7);
+            else if (event.code == KEY_I)
+                writeKeyMakeBreak(KEY_8);
+            else if (event.code == KEY_O)
+                writeKeyMakeBreak(KEY_9);
+            else if (event.code == KEY_J)
+                writeKeyMakeBreak(KEY_4);
+            else if (event.code == KEY_K)
+                writeKeyMakeBreak(KEY_5);
+            else if (event.code == KEY_L)
+                writeKeyMakeBreak(KEY_6);
+            else if (event.code == KEY_SEMICOLON)
+                writeKeyMakeBreak(KEY_0);
+            else if (event.code == KEY_APOSTROPHE)
+                writeKeyMakeBreak(KEY_EQUAL);
+            else if (event.code == KEY_M)
+                writeKeyMakeBreak(KEY_1);
+            else if (event.code == KEY_COMMA)
+                writeKeyMakeBreak(KEY_2);
+            else if (event.code == KEY_DOT)
+                writeKeyMakeBreak(KEY_3);
+            else if (event.code == KEY_H)
+                writeKeyMakeBreak(KEY_BACKSPACE);
+            else if (event.code == KEY_P)
+                writeKeyMakeBreak(KEY_DOT);
+            else if (event.code == KEY_LEFTBRACE)
+                writeModdedKey(1, KEY_8);
+            else if (event.code == KEY_RIGHTBRACE)
+                writeKeyMakeBreak(KEY_SLASH);
+            else if (event.code == KEY_Z)
+                writeKeyMakeBreak(KEY_MINUS);
+            else if (event.code == KEY_N)
+                writeKeyMakeBreak(KEY_KPPLUS);
         }
 
         // write
