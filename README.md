@@ -14,8 +14,10 @@ Probably lots of effort and cross-platform trouble.
 
 ### Installation
 - clone capsable repo to ~/git/  (or copy the binaries in /build/ and start script. If you change the path you must update the start script).
-- sudo dnf (apt) install yaml-cpp  (currently, Ubuntu installs 0.7 and Fedora 0.6, annoying)
-- sudo ~/git/capsable/start_caps.sh  
-  (or sudo ~/git/capsable/start_caps_apple-bt.sh for Apple keyboards to switch FN/LCtrl and ALT/META)
-- maybe you have to adjust the event numbers in the start script, e.g. `INTERDEV=/dev/input/event6`  
+- sudo dnf install yaml-cpp  (currently, Ubuntu installs 0.7 and Fedora 0.6 or 0.8, annoying. Intercept/uinput must be compiled against that 3pp)
+- sudo ~/git/capsable/start_capsable_pc.sh (for typical Windows hardware)
+  or start_capsable_apple-bt.sh for Apple keyboards to switch FN/LCtrl and ALT/META,
+  or start_capsable_macbook.sh (they all have different /dev/input/<event-id>)
+- maybe you have to adjust the event numbers in the start script, e.g. `INTERDEV=/dev/input/event6` 
   install and run 'evtest' if you cannot figure out the event# of your keyboard
+- for convenience, set `alias sc='sudo /home/jjj/git/capsable/start_capsable_pc.sh'`

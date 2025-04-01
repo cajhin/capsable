@@ -1,9 +1,12 @@
 if [ -e /usr/lib64/libyaml-cpp.so.0.6 ]
 then
-  DISTRO=fed
+  YAMLVERSION=yaml06
 elif [ -e /usr/lib64/libyaml-cpp.so.0.7 ]
 then
-  DISTRO=ubu
+  YAMLVERSION=yaml07
+elif [ -e /usr/lib64/libyaml-cpp.so.0.8 ]
+then
+  YAMLVERSION=yaml08
 else
   echo "unknown version of libyaml-cpp"
   exit
@@ -11,7 +14,7 @@ fi
 
 if [ -e /dev/input/by-path/platform-i8042-serio-0-event-kbd ]
 then
-  INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd  #VirtualBox and Dell 9350
+  INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd  #VirtualBox, Dell 9350, Thinkpad
 else
   echo "unknown event#, figure out the name with 'evtest' tool"
   exit
@@ -28,4 +31,4 @@ for (( i=0; i<10; ++i )); do
 done
 
 BUILDDIR=$(dirname $0)/build
-sudo nice -n -20 $BUILDDIR/intercept -g $INTERDEV | nice -n -20 $BUILDDIR/capsable | nice -n -20 $BUILDDIR/uinput_$DISTRO -d $INTERDEV
+sudo nice -n -20 $BUILDDIR/intercept -g $INTERDEV | nice -n -20 $BUILDDIR/capsable | nice -n -20 $BUILDDIR/uinput_$YAMLVERSION -d $INTERDEV
