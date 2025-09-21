@@ -38,6 +38,7 @@ int isKeycodeModifier(unsigned short code)
     case KEY_RIGHTCTRL:
     case KEY_RIGHTMETA:
     case KEY_RIGHTALT:
+    case KEY_FN:
         return 1;
     }
     return 0;

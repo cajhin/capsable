@@ -1,5 +1,5 @@
 # capsable
-hardcoded kingcon layout on Linux 
+hardcoded 'kingcon' layout on Linux 
 (tested on Fedora and Ubuntu)
 
 Prototype, using the Linux version of Interception 
@@ -15,7 +15,10 @@ Probably lots of effort and cross-platform trouble.
 
 ### Installation
 - clone capsable repo to ~/git/  (or copy the binaries in /build/ and start script. If you change the path you must update the start script).
-- sudo ~/git/capsable/start_capsable.sh
-- maybe you have to adjust the event numbers in the start script, e.g. `INTERDEV=/dev/input/event6` 
+- sudo ~/git/capsable/start_capsable.sh       # OR
+  sudo ~/git/capsable/start_capsable_apple.sh # flips cmd/alt and fn/ctrl keys (i don't like the apple layout on Linux)
+- maybe you have to adjust the event numbers in the start script, e.g. 
+  `INTERDEV=/dev/input/event14`  # for Apple magic keyboard 2
   install and run 'evtest' if you cannot figure out the event# of your keyboard
-- for convenience, set `alias sc='sudo /home/jjj/git/capsable/start_capsable.sh'`
+- for convenience, set `alias sc='sudo ~/git/capsable/start_capsable.sh'`
+- keep it running in a terminal tab
