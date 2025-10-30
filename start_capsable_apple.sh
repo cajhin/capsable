@@ -2,7 +2,7 @@
 #bluetooth devices are not listed in /by-path
 
 # start below with '.../capsable --apple' to swap cmd/option and fn/ctrl
-INTERDEV=/dev/input/event14  #apple magic keyboard2
+INTERDEV=/dev/input/event4  #apple magic keyboard2
 #INTERDEV=/dev/input/event6  #apple air keyboard
 
 #INTERDEV=/dev/input/by-path/platform-i8042-serio-0-event-kbd  #VirtualBox, Dell 9350, Thinkpad

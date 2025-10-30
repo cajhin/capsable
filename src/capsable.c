@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "v17 with Tab"
+#define VERSION "v18 apple on linux"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot? VirtualBox a lot lot
 #define DEFAULT_SLEEP_BETWEEN_KEYS_US 6000
@@ -215,10 +215,10 @@ int main(int argc, char **argv)
                 event.code = KEY_RIGHTMETA;
             else if (event.code == KEY_RIGHTMETA)
                 event.code = KEY_RIGHTALT;
-            else if (event.code == KEY_FN)
-                event.code = KEY_LEFTCTRL;
-            else if (event.code == KEY_LEFTCTRL)
-                event.code = KEY_FN;
+//            else if (event.code == KEY_FN)
+//                event.code = KEY_LEFTCTRL;
+//            else if (event.code == KEY_LEFTCTRL)
+//                event.code = KEY_FN;
         }
 
         // ESC, VIRTUAL MODIFIERS
@@ -290,6 +290,7 @@ int main(int argc, char **argv)
         // CAPS cursor, ASDF
         if (capsIsDown && event.value)
         {
+            //cursor control
             if (event.code == KEY_J)
                 writeKeyMakeBreak(KEY_LEFT);
             else if (event.code == KEY_L)
@@ -316,7 +317,8 @@ int main(int argc, char **argv)
                 writeModdedKey(2, KEY_RIGHT);
             else if (event.code == KEY_COMMA)
                 writeModdedKey(1, KEY_RIGHT);
-
+                
+            // classic ctrl+x functions
             else if (event.code == KEY_A)
                 writeModdedKey(2, KEY_Z);
             else if (event.code == KEY_S)
@@ -397,6 +399,7 @@ int main(int argc, char **argv)
             else if (event.code == KEY_LEFTBRACE)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_U);
         }
+        //tab -> numpad  
         if (tabIsDown && event.value)
         {
             if (event.code == KEY_U)
