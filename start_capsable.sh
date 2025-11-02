@@ -46,20 +46,30 @@
       ' /proc/bus/input/devices
   }
 
-  RESULT=$(find_keyboard "$FIND_APPLE")
+  # If --apple flag is set, check for persistent symlink first
+  if [ "$FIND_APPLE" = true ] && [ -e "/dev/input/apple-keyboard" ]; then
+      KEYBOARD_PATH="/dev/input/apple-keyboard"
+      # Get the actual event device for display purposes
+      EVENT_NUM=$(basename $(readlink -f /dev/input/apple-keyboard))
+      KEYBOARD_NAME="Apple Keyboard (via persistent symlink)"
+      echo "Found persistent apple-keyboard symlink"
+  else
+      # Fall back to searching
+      RESULT=$(find_keyboard "$FIND_APPLE")
 
-  if [ -z "$RESULT" ]; then
-      if [ "$FIND_APPLE" = true ]; then
-          echo "no apple keyboard found"
-      else
-          echo "no non-apple keyboard found"
+      if [ -z "$RESULT" ]; then
+          if [ "$FIND_APPLE" = true ]; then
+              echo "no apple keyboard found"
+          else
+              echo "no non-apple keyboard found"
+          fi
+          exit 1
       fi
-      exit 1
-  fi
 
-  EVENT_NUM=$(echo "$RESULT" | head -1)
-  KEYBOARD_NAME=$(echo "$RESULT" | tail -1)
-  KEYBOARD_PATH="/dev/input/$EVENT_NUM"
+      EVENT_NUM=$(echo "$RESULT" | head -1)
+      KEYBOARD_NAME=$(echo "$RESULT" | tail -1)
+      KEYBOARD_PATH="/dev/input/$EVENT_NUM"
+  fi
 
   echo "Using: $KEYBOARD_PATH ($KEYBOARD_NAME)"
 

@@ -22,3 +22,15 @@ Probably lots of effort and cross-platform trouble.
   install and run 'evtest' if you cannot figure out the event# of your keyboard
 - for convenience, set `alias sc='sudo ~/git/capsable/start_capsable.sh'`
 - keep it running in a terminal tab
+
+Issue: Apple BT keyboard changes deviceID on every login
+Solution: create a fixed udev symlink:
+  ⎿  Wrote 3 lines to ../../tmp/99-apple-keyboard.rules
+     # Create persistent symlink for Apple Bluetooth Keyboard
+     SUBSYSTEM=="input", ATTRS{name}=="jjj2 Keyboard ANSI", ATTRS{uniq}=="e4:8b:7f:2a:f8:f0", KERNEL=="event*", SYMLINK+="input/apple-keyboard"
+
+● To install this rule:
+  sudo cp /tmp/99-apple-keyboard.rules /etc/udev/rules.d/
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger
+
