@@ -1,5 +1,11 @@
  #!/bin/bash
 
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: This script must be run as root (use sudo)"
+    exit 1
+fi
+
   # Check if --apple flag is passed : find first apple keyboard and switch cmd/alt
   FIND_APPLE=false
   if [ "$1" = "--apple" ]; then
@@ -79,6 +85,23 @@ for (( i=0; i<10; ++i )); do
     echo -n '.'
     sleep 0.05
 done
+echo
 
 BUILDDIR=$(dirname $0)/build
-sudo nice -n -20 $BUILDDIR/intercept -g $KEYBOARD_PATH | nice -n -20 $BUILDDIR/capsable $1 | nice -n -20 $BUILDDIR/uinput -d $KEYBOARD_PATH
+
+# Main loop - restart if keyboard disconnects, but exit on Ctrl-C
+while true; do
+    echo "Starting capsable... ($KEYBOARD_PATH)"
+    sudo nice -n -20 $BUILDDIR/intercept -g $KEYBOARD_PATH | nice -n -20 $BUILDDIR/capsable $1 | nice -n -20 $BUILDDIR/uinput -d $KEYBOARD_PATH
+    EXIT_CODE=$?
+
+    # Exit code 130 means Ctrl-C (SIGINT), so exit the script (normally ctrl-c kills the script immediately so this does not execute)
+    if [ $EXIT_CODE -eq 130 ]; then
+        echo "Stopped by user (Ctrl-C)"
+        exit 0
+    fi
+
+    # Otherwise, assume keyboard disconnected - wait and restart
+    echo "Capsable stopped (exit code: $EXIT_CODE). Waiting for keyboard to wake up..."
+    sleep 3
+done
