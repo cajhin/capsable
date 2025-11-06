@@ -4,8 +4,11 @@
 #include <unistd.h>
 #include <string.h>
 
-#define DEBUG if (0)
-#define VERSION "v19 ctrl and shift cancels alt2mod9"
+#define DEBUG if (isDebugEnabled)
+#define VERSION "v20 esc+d and = to Alt"
+
+// toggle debug output with ESC+D
+int isDebugEnabled = 0;
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot? VirtualBox a lot lot
 #define DEFAULT_SLEEP_BETWEEN_KEYS_US 6000
@@ -157,6 +160,9 @@ void handleEscapeDownCombo(unsigned short ecode)
                 fprintf(stderr, "Sleep:%d\n", SLEEP_BETWEEN_KEYS_US);
             }
         break;
+        case KEY_D:
+            isDebugEnabled = isDebugEnabled == 0 ? 1 : 0;
+            break;
     }
 }
 
@@ -169,10 +175,10 @@ int main(int argc, char **argv)
     int escIsDown = 0;
     int capsIsDown = 0;
     int tabIsDown = 0;
-    int altIsDown = 0;
+    int vmodAltIsDown = 0;
     int lshiftIsDown = 0;
     int rshiftIsDown = 0;
-    int lctrlIsDown = 0;
+    int laltWasSent = 0;
 
     int keyboardIsApple = 0;
     if (argc > 1 && strcmp("--apple", argv[1]) == 0)
@@ -202,10 +208,6 @@ int main(int argc, char **argv)
             continue;
         }
 
-        previous_event.code = previous_event_tmp.code;
-        previous_event_tmp.code = event.code;
-        DEBUG fprintf(stderr, " IN: %i\n", event.code);
-
         if (keyboardIsApple)
         {
             if (event.code == KEY_LEFTALT)
@@ -221,6 +223,10 @@ int main(int argc, char **argv)
 //            else if (event.code == KEY_LEFTCTRL)
 //                event.code = KEY_FN;
         }
+
+        previous_event.code = previous_event_tmp.code;
+        previous_event_tmp.code = event.code;
+        DEBUG fprintf(stderr, " IN: %i\n", event.code);
 
         // ESC, VIRTUAL MODIFIERS
         if (event.code == KEY_ESC)
@@ -254,14 +260,14 @@ int main(int argc, char **argv)
             capsIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
-        else if (event.code == KEY_RIGHTALT || event.code == KEY_LEFTALT)
+        else if ((event.code == KEY_RIGHTALT || event.code == KEY_LEFTALT)) //send the real alt on tap+hold left alt; else alt->mod9
         {
-            altIsDown = event.value == 0 ? 0 : 1;
+            vmodAltIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
 
         // REWIRE
-        else if (event.code == KEY_RIGHTCTRL)
+        else if (event.code == KEY_RIGHTCTRL || (keyboardIsApple && event.code == KEY_EQUAL)) //lousy hack because apple kb has no right ctrl
             event.code = KEY_LEFTALT;
         else if (event.code == KEY_SLASH)
             event.code = KEY_RIGHTSHIFT;
@@ -286,11 +292,6 @@ int main(int argc, char **argv)
             rshiftIsDown = event.value;
             if (rshiftIsDown && lshiftIsDown)
                 setCapsLockState(1);
-        }
-        //remember if ctrl is down; it cancels the alt reassignment
-        else if (event.code == KEY_LEFTCTRL)
-        {
-            lctrlIsDown = event.value == 0 ? 0 : 1;
         }
 
         // CAPS cursor, ASDF
@@ -339,7 +340,7 @@ int main(int argc, char **argv)
                 continue; //drop undefined caps+X combos
         }
         // ALT CHARS !@#$%^&()
-        else if (altIsDown && !lshiftIsDown && !rshiftIsDown && !lctrlIsDown && event.value)
+        else if (vmodAltIsDown && event.value)
         {
             if (event.code == KEY_Q)
                 writeModdedKey(1, KEY_1);
@@ -447,6 +448,9 @@ int main(int argc, char **argv)
         // write
         // note: explicitly break, even if maybe there was no make, to avoid stuck keys
         if (!key_handled)
+        {
+            DEBUG fprintf(stderr, " SEND: %i\n", event.code);
             writeKey(event.code);
+        }
     }
 }
