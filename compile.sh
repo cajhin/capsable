@@ -1,1 +1,1 @@
-clang ~/git/capsable/src/capsable.c -o ~/git/capsable/build/capsable
+clang ~/mine/git/capsable/src/capsable.c -o ~/mine/git/capsable/build/capsable

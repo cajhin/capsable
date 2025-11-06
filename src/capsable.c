@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (0)
-#define VERSION "v18 apple on linux"
+#define VERSION "v19 ctrl and shift cancels alt2mod9"
 
 // pause between key sends. Fuzzy. VSCode needs no sleep, gnome apps a lot? VirtualBox a lot lot
 #define DEFAULT_SLEEP_BETWEEN_KEYS_US 6000
@@ -172,6 +172,7 @@ int main(int argc, char **argv)
     int altIsDown = 0;
     int lshiftIsDown = 0;
     int rshiftIsDown = 0;
+    int lctrlIsDown = 0;
 
     int keyboardIsApple = 0;
     if (argc > 1 && strcmp("--apple", argv[1]) == 0)
@@ -286,6 +287,11 @@ int main(int argc, char **argv)
             if (rshiftIsDown && lshiftIsDown)
                 setCapsLockState(1);
         }
+        //remember if ctrl is down; it cancels the alt reassignment
+        else if (event.code == KEY_LEFTCTRL)
+        {
+            lctrlIsDown = event.value == 0 ? 0 : 1;
+        }
 
         // CAPS cursor, ASDF
         if (capsIsDown && event.value)
@@ -333,7 +339,7 @@ int main(int argc, char **argv)
                 continue; //drop undefined caps+X combos
         }
         // ALT CHARS !@#$%^&()
-        else if (altIsDown && event.value)
+        else if (altIsDown && !lshiftIsDown && !rshiftIsDown && !lctrlIsDown && event.value)
         {
             if (event.code == KEY_Q)
                 writeModdedKey(1, KEY_1);
