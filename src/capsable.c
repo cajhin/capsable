@@ -240,8 +240,8 @@ int main(int argc, char **argv)
         {
             if(event.code == KEY_X)
             {
-                fprintf(stderr, "capsable exit\n");
-                break;
+                fprintf(stderr, "capsable exit by ESC+X\n");
+                return 0;
             }
             if(event.value != 0)
                 handleEscapeDownCombo(event.code);
@@ -453,4 +453,7 @@ int main(int argc, char **argv)
             writeKey(event.code);
         }
     }
+
+    fprintf(stderr, "Loop exited; keyboard disconnected?\n");
+    return 1;
 }

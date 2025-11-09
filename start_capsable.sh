@@ -93,15 +93,24 @@ BUILDDIR=$(dirname $0)/build
 while true; do
     echo "Starting capsable... ($KEYBOARD_PATH)"
     sudo nice -n -20 $BUILDDIR/intercept -g $KEYBOARD_PATH | nice -n -20 $BUILDDIR/capsable $1 | nice -n -20 $BUILDDIR/uinput -d $KEYBOARD_PATH
-    EXIT_CODE=$?
+    PIPE_STATUSES=("${PIPESTATUS[@]}")  # Save all exit codes immediately
+    EXIT_CODE=${PIPE_STATUSES[1]}  # Get exit code from capsable (2nd command in pipeline)
+    echo "DEBUG: intercept=${PIPE_STATUSES[0]}, capsable=${PIPE_STATUSES[1]}, uinput=${PIPE_STATUSES[2]}"
 
-    # Exit code 130 means Ctrl-C (SIGINT), so exit the script (normally ctrl-c kills the script immediately so this does not execute)
-    if [ $EXIT_CODE -eq 130 ]; then
+    # Exit code 0 means clean exit (ESC+X), 130 means Ctrl-C (SIGINT)
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "Stopped cleanly (ESC+X)"
+        exit 0
+    elif [ $EXIT_CODE -eq 130 ]; then
         echo "Stopped by user (Ctrl-C)"
         exit 0
+    elif [ $EXIT_CODE -eq 1 ]; then
+        # Keyboard disconnected - wait and restart
+        echo "Keyboard disconnected. Waiting for keyboard to wake up..."
+        sleep 3
+    else
+        # Unexpected exit code - don't restart
+        echo "Unexpected exit code: $EXIT_CODE. Exiting."
+        exit $EXIT_CODE
     fi
-
-    # Otherwise, assume keyboard disconnected - wait and restart
-    echo "Capsable stopped (exit code: $EXIT_CODE). Waiting for keyboard to wake up..."
-    sleep 3
 done
