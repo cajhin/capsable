@@ -214,10 +214,10 @@ int main(int argc, char **argv)
                 event.code = KEY_LEFTMETA;
             else if (event.code == KEY_LEFTMETA)
                 event.code = KEY_LEFTALT;
-            else if (event.code == KEY_RIGHTALT)
-                event.code = KEY_RIGHTMETA;
-            else if (event.code == KEY_RIGHTMETA)
-                event.code = KEY_RIGHTALT;
+//            else if (event.code == KEY_RIGHTALT)
+//                event.code = KEY_RIGHTMETA;
+//            else if (event.code == KEY_RIGHTMETA)
+//                event.code = KEY_RIGHTALT;
 //            else if (event.code == KEY_FN)
 //                event.code = KEY_LEFTCTRL;
 //            else if (event.code == KEY_LEFTCTRL)
@@ -260,15 +260,18 @@ int main(int argc, char **argv)
             capsIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
-        else if ((event.code == KEY_RIGHTALT || event.code == KEY_LEFTALT)) //send the real alt on tap+hold left alt; else alt->mod9
+        else if (event.code == KEY_LEFTALT 
+            || (!keyboardIsApple && event.code == KEY_RIGHTALT)
+            || (keyboardIsApple && event.code == KEY_RIGHTMETA)
+            ) //alt->mod9 for pc; lalt/rmeta for apple
         {
             vmodAltIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
 
         // REWIRE
-        else if (event.code == KEY_RIGHTCTRL || (keyboardIsApple && event.code == KEY_EQUAL)) //lousy hack because apple kb has no right ctrl
-            event.code = KEY_LEFTALT;
+        else if (event.code == KEY_RIGHTCTRL)
+            event.code = KEY_RIGHTALT;
         else if (event.code == KEY_SLASH)
             event.code = KEY_RIGHTSHIFT;
         else if (event.code == KEY_BACKSLASH)
