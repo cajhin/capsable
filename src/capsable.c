@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (isDebugEnabled)
-#define VERSION "v20 esc+d and = to Alt"
+#define VERSION "v21 (caps+qwer = All,ctrl-home,ctrl-f,F3 ; META+X)"
 
 // toggle debug output with ESC+D
 int isDebugEnabled = 0;
@@ -145,7 +145,7 @@ void setCapsLockState(int newCapsLockState)
     }
 }
 
-void handleEscapeDownCombo(unsigned short ecode) 
+void handleEscapeDownCombo(unsigned short ecode)
 {
     switch (ecode)
     {
@@ -176,6 +176,7 @@ int main(int argc, char **argv)
     int capsIsDown = 0;
     int tabIsDown = 0;
     int vmodAltIsDown = 0;
+    int lmetaIsDown = 0;
     int lshiftIsDown = 0;
     int rshiftIsDown = 0;
     int laltWasSent = 0;
@@ -260,7 +261,7 @@ int main(int argc, char **argv)
             capsIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
-        else if (event.code == KEY_LEFTALT 
+        else if (event.code == KEY_LEFTALT
             || (!keyboardIsApple && event.code == KEY_RIGHTALT)
             || (keyboardIsApple && event.code == KEY_RIGHTMETA)
             ) //alt->mod9 for pc; lalt/rmeta for apple
@@ -268,6 +269,10 @@ int main(int argc, char **argv)
             vmodAltIsDown = event.value == 0 ? 0 : 1;
             continue;
         }
+
+        else if (event.code == KEY_LEFTMETA)
+            lmetaIsDown = event.value == 0 ? 0 : 1;
+            // no continue — meta passes through
 
         // REWIRE
         else if (event.code == KEY_RIGHTCTRL)
@@ -295,6 +300,24 @@ int main(int argc, char **argv)
             rshiftIsDown = event.value;
             if (rshiftIsDown && lshiftIsDown)
                 setCapsLockState(1);
+        }
+
+        // META shortcuts
+        if (lmetaIsDown && event.code == KEY_X)
+        {
+            if (event.value == 1)
+            {
+                writeKeyOverride(KEY_LEFTSHIFT, 1); // suppress meta tapped gnome combo
+                writeKeyOverride(KEY_LEFTSHIFT, 0);
+                writeKeyOverride(KEY_LEFTMETA, 0); // release meta first
+                sleepBetweenKeys();
+                writeKeyOverride(KEY_LEFTALT, 1);
+                sleepBetweenKeys();
+                writeKeyMakeBreak(KEY_F4);
+                writeKeyOverride(KEY_LEFTALT, 0);
+                key_handled = 1;
+            }
+            continue; // suppress X make and break
         }
 
         // CAPS cursor, ASDF
@@ -327,7 +350,17 @@ int main(int argc, char **argv)
                 writeModdedKey(2, KEY_RIGHT);
             else if (event.code == KEY_COMMA)
                 writeModdedKey(1, KEY_RIGHT);
-                
+
+            // all / top / find / find-next
+            else if (event.code == KEY_Q)
+                writeModdedKey(2, KEY_A);       // ctrl+a  select all
+            else if (event.code == KEY_W)
+                writeModdedKey(2, KEY_HOME);    // ctrl+home  top
+            else if (event.code == KEY_E)
+                writeModdedKey(2, KEY_F);       // ctrl+f  find
+            else if (event.code == KEY_R)
+                writeKeyMakeBreak(KEY_F3);      // F3  find-next (shift passes through)
+
             // classic ctrl+x functions
             else if (event.code == KEY_A)
                 writeModdedKey(2, KEY_Z);
@@ -409,7 +442,7 @@ int main(int argc, char **argv)
             else if (event.code == KEY_LEFTBRACE)
                 compose(0b010000, KEY_APOSTROPHE, 0, KEY_U);
         }
-        //tab -> numpad  
+        //tab -> numpad
         if (tabIsDown && event.value)
         {
             if (event.code == KEY_U)
