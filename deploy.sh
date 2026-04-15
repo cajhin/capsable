@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cp "$SCRIPT_DIR/build/capsable" ~/bin/capsable
-cp "$SCRIPT_DIR/start_capsable.sh" ~/bin/start_capsable.sh
-chmod +x ~/bin/capsable ~/bin/start_capsable.sh
+mkdir -p ~/bin/capsable
+cp "$SCRIPT_DIR/build/"* ~/bin/capsable/
+cp "$SCRIPT_DIR/start_capsable.sh" ~/bin/capsable/start_capsable.sh
+chmod +x ~/bin/capsable/*
 echo "deployed"

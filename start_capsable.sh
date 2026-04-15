@@ -87,12 +87,12 @@ for (( i=0; i<10; ++i )); do
 done
 echo
 
-BUILDDIR=$(dirname $0)/build
+BINDIR=$(cd "$(dirname "$0")" && pwd)
 
 # Main loop - restart if keyboard disconnects, but exit on Ctrl-C
 while true; do
     echo "Starting capsable... ($KEYBOARD_PATH)"
-    sudo nice -n -20 $BUILDDIR/intercept -g $KEYBOARD_PATH | nice -n -20 $BUILDDIR/capsable $1 | nice -n -20 $BUILDDIR/uinput -d $KEYBOARD_PATH
+    sudo nice -n -20 "$BINDIR/intercept" -g $KEYBOARD_PATH | nice -n -20 "$BINDIR/capsable" $1 | nice -n -20 "$BINDIR/uinput" -d $KEYBOARD_PATH
     PIPE_STATUSES=("${PIPESTATUS[@]}")  # Save all exit codes immediately
     EXIT_CODE=${PIPE_STATUSES[1]}  # Get exit code from capsable (2nd command in pipeline)
     echo "DEBUG: intercept=${PIPE_STATUSES[0]}, capsable=${PIPE_STATUSES[1]}, uinput=${PIPE_STATUSES[2]}"
