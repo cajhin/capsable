@@ -1,5 +1,8 @@
 # capsable
-hardcoded 'kingcon' layout on Linux 
+
+Low-level key configuration tool for Linux.
+
+My personal 'kingcon' layout, just the essentials.
 (tested on Fedora and Ubuntu)
 
 Prototype, using the Linux version of Interception 
