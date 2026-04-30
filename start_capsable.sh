@@ -33,8 +33,8 @@ fi
           }
           found && /^P: Phys=/ && $2 != "" {has_phys=1}
           found && /^H: Handlers=/ && has_phys {
-              # Only consider USB (0003) or Bluetooth (0005) devices
-              is_real_device = (bus_id == "0003" || bus_id == "0005")
+              # For Apple: USB or Bluetooth; for built-in: i8042 (0011) or USB, not Bluetooth
+              is_real_device = (find_apple == "true") ? (bus_id == "0003" || bus_id == "0005") : (bus_id == "0003" || bus_id == "0011")
               is_apple = (vendor_id == "05ac")
               is_keyboard = ($0 ~ /kbd/)
 
