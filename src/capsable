@@ -2,8 +2,7 @@
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    echo "Error: This script must be run as root (use sudo)"
-    exit 1
+    exec sudo "$0" "$@"
 fi
 
   # Check if --apple flag is passed : find first apple keyboard and switch cmd/alt
@@ -87,12 +86,12 @@ for (( i=0; i<10; ++i )); do
 done
 echo
 
-BINDIR=$(cd "$(dirname "$0")" && pwd)
+BINDIR="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)/.local/share/capsable"
 
 # Main loop - restart if keyboard disconnects, but exit on Ctrl-C
 while true; do
     echo "Starting capsable... ($KEYBOARD_PATH)"
-    sudo nice -n -20 "$BINDIR/intercept" -g $KEYBOARD_PATH | nice -n -20 "$BINDIR/capsable" $1 | nice -n -20 "$BINDIR/uinput" -d $KEYBOARD_PATH
+    sudo nice -n -20 "$BINDIR/intercept" -g $KEYBOARD_PATH | nice -n -20 "$BINDIR/capsable-core" $1 | nice -n -20 "$BINDIR/uinput" -d $KEYBOARD_PATH
     PIPE_STATUSES=("${PIPESTATUS[@]}")  # Save all exit codes immediately
     EXIT_CODE=${PIPE_STATUSES[1]}  # Get exit code from capsable (2nd command in pipeline)
     echo "DEBUG: intercept=${PIPE_STATUSES[0]}, capsable=${PIPE_STATUSES[1]}, uinput=${PIPE_STATUSES[2]}"
