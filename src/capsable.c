@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define DEBUG if (isDebugEnabled)
-#define VERSION "v21 (caps+qwer = All,ctrl-home,ctrl-f,F3 ; META+X)"
+#define VERSION "v22 (caps+qwer = All,ctrl-home,ctrl-f,F3 ; META+X)"
 
 // toggle debug output with ESC+D
 int isDebugEnabled = 0;

@@ -21,9 +21,9 @@ find_keyboard() {
             match($0, /"([^"]+)"/, m); device_name = m[1]
         }
         found && /^P: Phys=/ && $2 != "" { has_phys=1 }
-        found && /^S: Sysfs=/ && /\/virtual\// { has_phys=0 }
+        found && /^S: Sysfs=/ && /\/virtual\// && !/\/uhid\// { has_phys=0 }
         found && /^H: Handlers=/ && has_phys {
-            is_apple = (vendor_id == "05ac")
+            is_apple = (vendor_id == "05ac" || vendor_id == "004c")
             is_kbd   = ($0 ~ /kbd/)
             is_usb   = (bus_id == "0003")
             is_bt    = (bus_id == "0005")
