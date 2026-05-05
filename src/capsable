@@ -49,42 +49,48 @@ resolve_result() {
     KEYBOARD_PATH="/dev/input/$EVENT_NUM"
 }
 
-CORE_FLAG=""
+detect_keyboard() {
+    CORE_FLAG=""
+    KEYBOARD_PATH=""
+    KEYBOARD_NAME=""
 
-if [ "$MODE" = "apple" ]; then
-    if [ -e "/dev/input/apple-keyboard" ]; then
-        KEYBOARD_PATH="/dev/input/apple-keyboard"
-        KEYBOARD_NAME="Apple Keyboard (via symlink)"
-    else
-        RESULT=$(find_keyboard "apple")
-        [ -z "$RESULT" ] && { echo "no apple keyboard found"; exit 1; }
-        resolve_result "$RESULT"
-    fi
-    CORE_FLAG="--apple"
-elif [ "$MODE" = "pc" ]; then
-    RESULT=$(find_keyboard "pc")
-    [ -z "$RESULT" ] && { echo "no pc keyboard found"; exit 1; }
-    resolve_result "$RESULT"
-else
-    # auto: apple > bt > any
-    if [ -e "/dev/input/apple-keyboard" ]; then
-        KEYBOARD_PATH="/dev/input/apple-keyboard"
-        KEYBOARD_NAME="Apple Keyboard (via symlink)"
-        CORE_FLAG="--apple"
-    else
-        RESULT=$(find_keyboard "apple")
-        if [ -n "$RESULT" ]; then
-            resolve_result "$RESULT"
-            CORE_FLAG="--apple"
+    if [ "$MODE" = "apple" ]; then
+        if [ -e "/dev/input/apple-keyboard" ]; then
+            KEYBOARD_PATH="/dev/input/apple-keyboard"
+            KEYBOARD_NAME="Apple Keyboard (via symlink)"
         else
-            RESULT=$(find_keyboard "bt")
-            [ -z "$RESULT" ] && RESULT=$(find_keyboard "any")
-            [ -z "$RESULT" ] && { echo "no keyboard found"; exit 1; }
+            RESULT=$(find_keyboard "apple")
+            [ -z "$RESULT" ] && { echo "no apple keyboard found"; return 1; }
             resolve_result "$RESULT"
         fi
+        CORE_FLAG="--apple"
+    elif [ "$MODE" = "pc" ]; then
+        RESULT=$(find_keyboard "pc")
+        [ -z "$RESULT" ] && { echo "no pc keyboard found"; return 1; }
+        resolve_result "$RESULT"
+    else
+        # auto: apple > bt > any
+        if [ -e "/dev/input/apple-keyboard" ]; then
+            KEYBOARD_PATH="/dev/input/apple-keyboard"
+            KEYBOARD_NAME="Apple Keyboard (via symlink)"
+            CORE_FLAG="--apple"
+        else
+            RESULT=$(find_keyboard "apple")
+            if [ -n "$RESULT" ]; then
+                resolve_result "$RESULT"
+                CORE_FLAG="--apple"
+            else
+                RESULT=$(find_keyboard "bt")
+                [ -z "$RESULT" ] && RESULT=$(find_keyboard "any")
+                [ -z "$RESULT" ] && { echo "no keyboard found"; return 1; }
+                resolve_result "$RESULT"
+            fi
+        fi
     fi
-fi
+    return 0
+}
 
+detect_keyboard || exit 1
 echo "Using: $KEYBOARD_PATH ($KEYBOARD_NAME)"
 
 #if the enter key is down on startup -> hangs. So wait for release of Enter.
@@ -113,6 +119,8 @@ while true; do
     elif [ $EXIT_CODE -eq 1 ]; then
         echo "Keyboard disconnected. Waiting for keyboard to wake up..."
         sleep 3
+        until detect_keyboard; do sleep 2; done
+        echo "Reconnected: $KEYBOARD_PATH ($KEYBOARD_NAME)"
     else
         echo "Unexpected exit code: $EXIT_CODE. Exiting."
         exit $EXIT_CODE
