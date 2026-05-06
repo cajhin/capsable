@@ -53,6 +53,7 @@ detect_keyboard() {
     CORE_FLAG=""
     KEYBOARD_PATH=""
     KEYBOARD_NAME=""
+    DETECTED_KIND=""
 
     if [ "$MODE" = "apple" ]; then
         if [ -e "/dev/input/apple-keyboard" ]; then
@@ -64,26 +65,36 @@ detect_keyboard() {
             resolve_result "$RESULT"
         fi
         CORE_FLAG="--apple"
+        DETECTED_KIND="apple"
     elif [ "$MODE" = "pc" ]; then
         RESULT=$(find_keyboard "pc")
         [ -z "$RESULT" ] && { echo "no pc keyboard found"; return 1; }
         resolve_result "$RESULT"
+        DETECTED_KIND="pc"
     else
         # auto: apple > bt > any
         if [ -e "/dev/input/apple-keyboard" ]; then
             KEYBOARD_PATH="/dev/input/apple-keyboard"
             KEYBOARD_NAME="Apple Keyboard (via symlink)"
             CORE_FLAG="--apple"
+            DETECTED_KIND="apple"
         else
             RESULT=$(find_keyboard "apple")
             if [ -n "$RESULT" ]; then
                 resolve_result "$RESULT"
                 CORE_FLAG="--apple"
+                DETECTED_KIND="apple"
             else
                 RESULT=$(find_keyboard "bt")
-                [ -z "$RESULT" ] && RESULT=$(find_keyboard "any")
-                [ -z "$RESULT" ] && { echo "no keyboard found"; return 1; }
-                resolve_result "$RESULT"
+                if [ -n "$RESULT" ]; then
+                    resolve_result "$RESULT"
+                    DETECTED_KIND="bt"
+                else
+                    RESULT=$(find_keyboard "any")
+                    [ -z "$RESULT" ] && { echo "no keyboard found"; return 1; }
+                    resolve_result "$RESULT"
+                    DETECTED_KIND="pc"
+                fi
             fi
         fi
     fi
@@ -91,7 +102,26 @@ detect_keyboard() {
 }
 
 detect_keyboard || exit 1
+STICKY_KIND="$DETECTED_KIND"
+STICKY_GRACE=25
 echo "Using: $KEYBOARD_PATH ($KEYBOARD_NAME)"
+
+reconnect_keyboard() {
+    # On resume, the apple BT kb can take ~5s longer than a USB pc kb to come back.
+    # Wait up to STICKY_GRACE seconds for the same kind we had before falling back.
+    if [ "$MODE" = "auto" ] && [ -n "$STICKY_KIND" ]; then
+        echo "Waiting up to ${STICKY_GRACE}s for $STICKY_KIND keyboard..."
+        local deadline=$(( $(date +%s) + STICKY_GRACE ))
+        while [ $(date +%s) -lt $deadline ]; do
+            if detect_keyboard && [ "$DETECTED_KIND" = "$STICKY_KIND" ]; then
+                return 0
+            fi
+            sleep 1
+        done
+        echo "Sticky wait timed out; accepting any keyboard."
+    fi
+    until detect_keyboard; do sleep 2; done
+}
 
 #if the enter key is down on startup -> hangs. So wait for release of Enter.
 echo -n 'please release all keys'
@@ -119,7 +149,7 @@ while true; do
     elif [ $EXIT_CODE -eq 1 ]; then
         echo "Keyboard disconnected. Waiting for keyboard to wake up..."
         sleep 3
-        until detect_keyboard; do sleep 2; done
+        reconnect_keyboard
         echo "Reconnected: $KEYBOARD_PATH ($KEYBOARD_NAME)"
     else
         echo "Unexpected exit code: $EXIT_CODE. Exiting."
