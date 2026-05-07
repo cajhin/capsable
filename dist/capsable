@@ -1,0 +1,158 @@
+ #!/bin/bash
+
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+MODE="auto"
+if [ "$1" = "--apple" ]; then MODE="apple"
+elif [ "$1" = "--pc" ]; then MODE="pc"
+fi
+
+find_keyboard() {
+    local mode=$1
+    awk -v mode="$mode" '
+        /^I: Bus=/ {
+            match($0, /Bus=([0-9a-f]+)/, b); bus_id = b[1]
+            match($0, /Vendor=([0-9a-f]+)/, v); vendor_id = v[1]
+            found=1; next
+        }
+        found && /^N: Name=/ {
+            match($0, /"([^"]+)"/, m); device_name = m[1]
+        }
+        found && /^P: Phys=/ && $2 != "" { has_phys=1 }
+        found && /^S: Sysfs=/ && /\/virtual\// && !/\/uhid\// { has_phys=0 }
+        found && /^H: Handlers=/ && has_phys {
+            is_apple = (vendor_id == "05ac" || vendor_id == "004c")
+            is_kbd   = ($0 ~ /kbd/)
+            is_usb   = (bus_id == "0003")
+            is_bt    = (bus_id == "0005")
+            is_ps2   = (bus_id == "0011")
+            match_dev = 0
+            if      (mode == "apple") match_dev = is_apple && is_kbd && (is_usb || is_bt)
+            else if (mode == "bt")    match_dev = is_bt && is_kbd
+            else if (mode == "pc")    match_dev = !is_apple && is_kbd && (is_usb || is_ps2)
+            else if (mode == "any")   match_dev = is_kbd && (is_usb || is_ps2 || is_bt)
+            if (match_dev) {
+                match($0, /event[0-9]+/)
+                if (RSTART) { print substr($0, RSTART, RLENGTH); print device_name; exit }
+            }
+        }
+        /^$/ { found=0; has_phys=0; vendor_id=""; device_name=""; bus_id="" }
+    ' /proc/bus/input/devices
+}
+
+resolve_result() {
+    local result=$1
+    EVENT_NUM=$(echo "$result" | head -1)
+    KEYBOARD_NAME=$(echo "$result" | tail -1)
+    KEYBOARD_PATH="/dev/input/$EVENT_NUM"
+}
+
+detect_keyboard() {
+    CORE_FLAG=""
+    KEYBOARD_PATH=""
+    KEYBOARD_NAME=""
+    DETECTED_KIND=""
+
+    if [ "$MODE" = "apple" ]; then
+        if [ -e "/dev/input/apple-keyboard" ]; then
+            KEYBOARD_PATH="/dev/input/apple-keyboard"
+            KEYBOARD_NAME="Apple Keyboard (via symlink)"
+        else
+            RESULT=$(find_keyboard "apple")
+            [ -z "$RESULT" ] && { echo "no apple keyboard found"; return 1; }
+            resolve_result "$RESULT"
+        fi
+        CORE_FLAG="--apple"
+        DETECTED_KIND="apple"
+    elif [ "$MODE" = "pc" ]; then
+        RESULT=$(find_keyboard "pc")
+        [ -z "$RESULT" ] && { echo "no pc keyboard found"; return 1; }
+        resolve_result "$RESULT"
+        DETECTED_KIND="pc"
+    else
+        # auto: apple > bt > any
+        if [ -e "/dev/input/apple-keyboard" ]; then
+            KEYBOARD_PATH="/dev/input/apple-keyboard"
+            KEYBOARD_NAME="Apple Keyboard (via symlink)"
+            CORE_FLAG="--apple"
+            DETECTED_KIND="apple"
+        else
+            RESULT=$(find_keyboard "apple")
+            if [ -n "$RESULT" ]; then
+                resolve_result "$RESULT"
+                CORE_FLAG="--apple"
+                DETECTED_KIND="apple"
+            else
+                RESULT=$(find_keyboard "bt")
+                if [ -n "$RESULT" ]; then
+                    resolve_result "$RESULT"
+                    DETECTED_KIND="bt"
+                else
+                    RESULT=$(find_keyboard "any")
+                    [ -z "$RESULT" ] && { echo "no keyboard found"; return 1; }
+                    resolve_result "$RESULT"
+                    DETECTED_KIND="pc"
+                fi
+            fi
+        fi
+    fi
+    return 0
+}
+
+detect_keyboard || exit 1
+STICKY_KIND="$DETECTED_KIND"
+STICKY_GRACE=25
+echo "Using: $KEYBOARD_PATH ($KEYBOARD_NAME)"
+
+reconnect_keyboard() {
+    # On resume, the apple BT kb can take ~5s longer than a USB pc kb to come back.
+    # Wait up to STICKY_GRACE seconds for the same kind we had before falling back.
+    if [ "$MODE" = "auto" ] && [ -n "$STICKY_KIND" ]; then
+        echo "Waiting up to ${STICKY_GRACE}s for $STICKY_KIND keyboard..."
+        local deadline=$(( $(date +%s) + STICKY_GRACE ))
+        while [ $(date +%s) -lt $deadline ]; do
+            if detect_keyboard && [ "$DETECTED_KIND" = "$STICKY_KIND" ]; then
+                return 0
+            fi
+            sleep 1
+        done
+        echo "Sticky wait timed out; accepting any keyboard."
+    fi
+    until detect_keyboard; do sleep 2; done
+}
+
+#if the enter key is down on startup -> hangs. So wait for release of Enter.
+echo -n 'please release all keys'
+for (( i=0; i<10; ++i )); do
+    echo -n '.'
+    sleep 0.05
+done
+echo
+
+BINDIR="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)/.local/share/capsable"
+
+while true; do
+    echo "Starting capsable... ($KEYBOARD_PATH)"
+    sudo nice -n -20 "$BINDIR/intercept" -g $KEYBOARD_PATH | nice -n -20 "$BINDIR/capsable-core" $CORE_FLAG | nice -n -20 "$BINDIR/uinput" -d $KEYBOARD_PATH
+    PIPE_STATUSES=("${PIPESTATUS[@]}")
+    EXIT_CODE=${PIPE_STATUSES[1]}
+    echo "DEBUG: intercept=${PIPE_STATUSES[0]}, capsable=${PIPE_STATUSES[1]}, uinput=${PIPE_STATUSES[2]}"
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "Stopped cleanly (ESC+X)"
+        exit 0
+    elif [ $EXIT_CODE -eq 130 ]; then
+        echo "Stopped by user (Ctrl-C)"
+        exit 0
+    elif [ $EXIT_CODE -eq 1 ]; then
+        echo "Keyboard disconnected. Waiting for keyboard to wake up..."
+        sleep 3
+        reconnect_keyboard
+        echo "Reconnected: $KEYBOARD_PATH ($KEYBOARD_NAME)"
+    else
+        echo "Unexpected exit code: $EXIT_CODE. Exiting."
+        exit $EXIT_CODE
+    fi
+done
