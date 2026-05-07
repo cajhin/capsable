@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-clang "$SCRIPT_DIR/src/capsable.c" -o "$SCRIPT_DIR/build/capsable-core"
+clang "$SCRIPT_DIR/src/capsable-core.c" -o "$SCRIPT_DIR/build/capsable-core"
 mkdir -p ~/.local/share/capsable ~/.local/bin
 cp "$SCRIPT_DIR/build/capsable-core" "$SCRIPT_DIR/build/intercept" "$SCRIPT_DIR/build/uinput" ~/.local/share/capsable/
 chmod +x ~/.local/share/capsable/*
